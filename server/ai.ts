@@ -239,73 +239,171 @@ export interface TransactionCommand {
   chatResponse: string;
 }
 
-// Função para interpretar comandos financeiros
+// Função para interpretar comandos financeiros usando regex e fallback IA
 export async function interpretarComandoFinanceiro(mensagem: string, userData?: any): Promise<TransactionCommand> {
+  // Regex patterns para detectar transações
+  const gastoRegex = /(?:gastei|comprei|paguei|despesa|gasto)\s+(?:r\$\s*)?(\d+(?:[\.,]\d{1,2})?)\s*(?:reais?)?\s*(?:com|no|na|em|de|para|pro)?\s*(.*)?/i;
+  const receitaRegex = /(?:recebi|ganhei|salário|renda|entrada)\s+(?:r\$\s*)?(\d+(?:[\.,]\d{1,2})?)\s*(?:reais?)?\s*(?:do|da|de|em)?\s*(.*)?/i;
+  
+  // Regex para consultas
+  const saldoRegex = /(?:qual|meu|ver|consultar)\s*(?:o|meu)?\s*(?:saldo|dinheiro)/i;
+  const extratoRegex = /(?:extrato|quanto|gastos?)\s*(?:do|da|no|na)?\s*(?:mês|semana|hoje|ontem)/i;
+  
+  let tipo = null;
+  let valor = null;
+  let categoria = "Outros";
+  let descricao = "";
+
+  // Verificar se é gasto/despesa
+  if (gastoRegex.test(mensagem)) {
+    const match = mensagem.match(gastoRegex);
+    tipo = "expense";
+    valor = parseFloat(match[1].replace(",", "."));
+    const contexto = match[2]?.trim() || "";
+    
+    // Categorizar baseado no contexto
+    categoria = categorizarTransacao(contexto, tipo);
+    descricao = contexto || "Despesa";
+
+    return {
+      action: 'create_transaction',
+      transactionData: {
+        type: 'expense',
+        amount: valor,
+        description: descricao,
+        category: categoria,
+        date: new Date().toISOString().split('T')[0]
+      },
+      chatResponse: `✅ **Despesa detectada!**\n\n💰 Valor: R$ ${valor.toFixed(2)}\n📝 Descrição: ${descricao}\n🏷️ Categoria: ${categoria}\n\nVou registrar para você agora!`
+    };
+  }
+
+  // Verificar se é receita
+  if (receitaRegex.test(mensagem)) {
+    const match = mensagem.match(receitaRegex);
+    tipo = "income";
+    valor = parseFloat(match[1].replace(",", "."));
+    const contexto = match[2]?.trim() || "";
+    
+    categoria = categorizarTransacao(contexto, tipo);
+    descricao = contexto || "Receita";
+
+    return {
+      action: 'create_transaction',
+      transactionData: {
+        type: 'income',
+        amount: valor,
+        description: descricao,
+        category: categoria,
+        date: new Date().toISOString().split('T')[0]
+      },
+      chatResponse: `✅ **Receita detectada!**\n\n💰 Valor: R$ ${valor.toFixed(2)}\n📝 Descrição: ${descricao}\n🏷️ Categoria: ${categoria}\n\nVou registrar para você agora!`
+    };
+  }
+
+  // Verificar consultas de saldo
+  if (saldoRegex.test(mensagem)) {
+    return {
+      action: 'query_data',
+      queryType: 'balance',
+      chatResponse: 'Consultando seu saldo atual...'
+    };
+  }
+
+  // Verificar consultas de extrato
+  if (extratoRegex.test(mensagem)) {
+    return {
+      action: 'query_data',
+      queryType: 'period',
+      chatResponse: 'Gerando extrato dos seus gastos...'
+    };
+  }
+
+  // Se não detectou nada específico, tentar usar IA como fallback (se disponível)
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
-          content: `Você é o FinBot, um assistente financeiro que interpreta comandos do usuário.
-
-REGRAS DE INTERPRETAÇÃO:
-1. Se o usuário mencionar GASTO/DESPESA/COMPRA: action = "create_transaction", type = "expense"
-2. Se o usuário mencionar RECEBI/GANHO/RENDA: action = "create_transaction", type = "income"  
-3. Se perguntar sobre SALDO/EXTRATO/QUANTO GASTEI: action = "query_data"
-4. Caso contrário: action = "general_chat"
-
-CATEGORIAS VÁLIDAS:
-- Alimentação, Transporte, Casa, Saúde, Educação, Lazer, Compras, Trabalho, Outros
-
-FORMATO DE RESPOSTA (JSON):
-{
-  "action": "create_transaction" | "query_data" | "general_chat",
-  "transactionData": {
-    "type": "income" | "expense",
-    "amount": número,
-    "description": "descrição clara",
-    "category": "categoria apropriada",
-    "date": "YYYY-MM-DD"
-  },
-  "queryType": "balance" | "expenses" | "income" | "category" | "period",
-  "chatResponse": "resposta amigável em português"
-}
-
-Exemplos:
-- "gastei 50 reais com mercado" → create_transaction, expense, 50, "Mercado", "Alimentação"
-- "recebi 1200 do salário" → create_transaction, income, 1200, "Salário", "Trabalho"
-- "quanto gastei esse mês?" → query_data, queryType: "period"
-- "qual meu saldo?" → query_data, queryType: "balance"`
+          content: `Analise se a mensagem é um comando financeiro. Responda apenas "SIM" ou "NÃO". Se for SIM, identifique o tipo (gasto/receita), valor e categoria.`
         },
         {
           role: "user",
           content: mensagem
         }
       ],
-      response_format: { type: "json_object" },
-      max_tokens: 300,
-      temperature: 0.3
+      max_tokens: 100,
+      temperature: 0.1
     });
 
-    const result = JSON.parse(response.choices[0].message.content || '{}');
-    
-    // Validação e fallback
-    if (!result.action) {
+    // Se a IA identificou algo, processar
+    const aiResponse = response.choices[0].message.content?.toLowerCase();
+    if (aiResponse?.includes('sim')) {
       return {
         action: 'general_chat',
-        chatResponse: generateIntelligentFallback(mensagem, userData)
+        chatResponse: 'Entendi que você quer registrar algo financeiro, mas não consegui identificar o valor exato. Tente usar um formato como: "gastei 50 reais com mercado" ou "recebi 1200 do salário".'
       };
     }
-
-    return result;
   } catch (error) {
-    console.error("Erro ao interpretar comando:", error);
-    return {
-      action: 'general_chat',
-      chatResponse: generateIntelligentFallback(mensagem, userData)
-    };
+    console.log("IA não disponível, usando fallback local");
   }
+
+  // Fallback para chat geral
+  return {
+    action: 'general_chat',
+    chatResponse: generateIntelligentFallback(mensagem, userData)
+  };
+}
+
+// Função auxiliar para categorizar automaticamente
+function categorizarTransacao(contexto: string, tipo: string): string {
+  const contextoLower = contexto.toLowerCase();
+  
+  // Categorias para despesas
+  if (tipo === 'expense') {
+    if (contextoLower.includes('mercado') || contextoLower.includes('supermercado') || 
+        contextoLower.includes('comida') || contextoLower.includes('restaurante') ||
+        contextoLower.includes('lanche') || contextoLower.includes('pizza')) {
+      return 'Alimentação';
+    }
+    if (contextoLower.includes('uber') || contextoLower.includes('táxi') || 
+        contextoLower.includes('ônibus') || contextoLower.includes('gasolina') ||
+        contextoLower.includes('combustível') || contextoLower.includes('transporte')) {
+      return 'Transporte';
+    }
+    if (contextoLower.includes('aluguel') || contextoLower.includes('casa') || 
+        contextoLower.includes('conta') || contextoLower.includes('energia') ||
+        contextoLower.includes('água') || contextoLower.includes('internet')) {
+      return 'Casa';
+    }
+    if (contextoLower.includes('médico') || contextoLower.includes('farmácia') || 
+        contextoLower.includes('remédio') || contextoLower.includes('consulta')) {
+      return 'Saúde';
+    }
+    if (contextoLower.includes('cinema') || contextoLower.includes('festa') || 
+        contextoLower.includes('balada') || contextoLower.includes('jogo')) {
+      return 'Lazer';
+    }
+    if (contextoLower.includes('roupa') || contextoLower.includes('sapato') || 
+        contextoLower.includes('compra') || contextoLower.includes('loja')) {
+      return 'Compras';
+    }
+  }
+  
+  // Categorias para receitas
+  if (tipo === 'income') {
+    if (contextoLower.includes('salário') || contextoLower.includes('trabalho') || 
+        contextoLower.includes('emprego')) {
+      return 'Trabalho';
+    }
+    if (contextoLower.includes('freelance') || contextoLower.includes('extra') || 
+        contextoLower.includes('projeto')) {
+      return 'Trabalho';
+    }
+  }
+  
+  return 'Outros';
 }
 
 // Função para gerar consultas de dados
