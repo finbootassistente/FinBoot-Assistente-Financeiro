@@ -1,18 +1,32 @@
-import { useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Users, TrendingUp, UserPlus, Activity } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Users, TrendingUp, UserPlus, Activity, MessageSquare, Send, BarChart3 } from "lucide-react";
 import Header from "@/components/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { apiRequest } from "@/lib/queryClient";
 import { formatDate, getRelativeTime } from "@/lib/utils";
 import type { User } from "@shared/schema";
 
+const CHART_COLORS = ['#25D366', '#128C7E', '#075E54', '#34B7F1', '#ECE5DD'];
+
 export default function Admin() {
+  const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
+  const [messageTitle, setMessageTitle] = useState("");
+  const [messageContent, setMessageContent] = useState("");
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const { toast } = useToast();
   const { isAuthenticated, isLoading: authLoading, user, isAdmin } = useAuth();
+  const queryClient = useQueryClient();
 
   // Redirect to home if not authenticated or not admin
   useEffect(() => {
@@ -41,6 +55,60 @@ export default function Admin() {
   const { data: users, isLoading: usersLoading } = useQuery<User[]>({
     queryKey: ["/api/admin/users"],
   });
+
+  const { data: analytics, isLoading: analyticsLoading } = useQuery<{
+    registrationChart: Array<{ month: string; users: number }>;
+    statusChart: Array<{ name: string; value: number; color: string }>;
+    totalUsers: number;
+  }>({
+    queryKey: ["/api/admin/analytics"],
+  });
+
+  const sendMessageMutation = useMutation({
+    mutationFn: async (data: { userId: number; title: string; content: string }) => {
+      const response = await apiRequest("POST", "/api/admin/send-message", data);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Mensagem enviada",
+        description: `Mensagem enviada para ${data.recipient} com sucesso.`,
+      });
+      setIsMessageDialogOpen(false);
+      setMessageTitle("");
+      setMessageContent("");
+      setSelectedUserId(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao enviar mensagem.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSendMessage = (userId: number) => {
+    setSelectedUserId(userId);
+    setIsMessageDialogOpen(true);
+  };
+
+  const submitMessage = () => {
+    if (!selectedUserId || !messageTitle.trim() || !messageContent.trim()) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Preencha título e conteúdo da mensagem.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    sendMessageMutation.mutate({
+      userId: selectedUserId,
+      title: messageTitle.trim(),
+      content: messageContent.trim(),
+    });
+  };
 
   const getInitials = (user: User): string => {
     if (user.name) {
@@ -146,6 +214,70 @@ export default function Admin() {
           </Card>
         </div>
 
+        {/* Analytics Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <BarChart3 className="w-5 h-5" />
+                <span>Registros por Mês</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {analyticsLoading ? (
+                <Skeleton className="w-full h-64" />
+              ) : (
+                <div className="w-full h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={analytics?.registrationChart || []}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="users" fill="#25D366" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Activity className="w-5 h-5" />
+                <span>Status dos Usuários</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {analyticsLoading ? (
+                <Skeleton className="w-full h-64" />
+              ) : (
+                <div className="w-full h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={analytics?.statusChart || []}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={40}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {analytics?.statusChart?.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Users Table */}
         <Card>
           <CardHeader>
@@ -168,6 +300,7 @@ export default function Admin() {
                     <th className="text-left py-3 px-6 font-medium text-gray-600">Tipo</th>
                     <th className="text-left py-3 px-6 font-medium text-gray-600">Cadastro</th>
                     <th className="text-left py-3 px-6 font-medium text-gray-600">Último Acesso</th>
+                    <th className="text-left py-3 px-6 font-medium text-gray-600">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -226,11 +359,22 @@ export default function Admin() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {user.updatedAt ? getRelativeTime(user.updatedAt) : 'N/A'}
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleSendMessage(user.id)}
+                            className="text-xs"
+                          >
+                            <MessageSquare className="w-3 h-3 mr-1" />
+                            Mensagem
+                          </Button>
+                        </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                      <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
                         Nenhum usuário encontrado
                       </td>
                     </tr>
@@ -240,6 +384,61 @@ export default function Admin() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Message Dialog */}
+        <Dialog open={isMessageDialogOpen} onOpenChange={setIsMessageDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center space-x-2">
+                <MessageSquare className="w-5 h-5" />
+                <span>Enviar Mensagem</span>
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="message-title">Título</Label>
+                <Input
+                  id="message-title"
+                  value={messageTitle}
+                  onChange={(e) => setMessageTitle(e.target.value)}
+                  placeholder="Assunto da mensagem"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="message-content">Mensagem</Label>
+                <Textarea
+                  id="message-content"
+                  value={messageContent}
+                  onChange={(e) => setMessageContent(e.target.value)}
+                  placeholder="Digite sua mensagem aqui..."
+                  rows={4}
+                  className="mt-1"
+                />
+              </div>
+              <div className="flex justify-end space-x-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsMessageDialogOpen(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={submitMessage}
+                  disabled={sendMessageMutation.isPending}
+                  className="whatsapp-green whatsapp-green-hover text-white"
+                >
+                  {sendMessageMutation.isPending ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  ) : (
+                    <Send className="w-4 h-4 mr-2" />
+                  )}
+                  {sendMessageMutation.isPending ? 'Enviando...' : 'Enviar'}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

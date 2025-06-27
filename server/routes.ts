@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertTransactionSchema } from "@shared/schema";
 import { getSession, registerUser, loginUser, logoutUser, isAuthenticated, isAdmin } from "./auth";
+import { analyzeUserSpending, generateDailySummary } from "./ai";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -161,6 +162,199 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(stats);
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // AI Analysis routes
+  app.get("/api/ai/analysis", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const transactions = await storage.getTransactionsByUser(userId);
+      const analysis = await analyzeUserSpending(transactions, userId);
+      res.json(analysis);
+    } catch (error) {
+      console.error("Error in AI analysis:", error);
+      res.status(500).json({ message: "Erro ao analisar dados financeiros" });
+    }
+  });
+
+  app.get("/api/ai/daily-summary", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const user = await storage.getUser(userId);
+      
+      // Calcular gastos de hoje
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      const transactions = await storage.getTransactionsByUser(userId);
+      const todayTransactions = transactions.filter(t => {
+        const transactionDate = new Date(t.date);
+        return transactionDate >= today && transactionDate < tomorrow;
+      });
+      
+      const todaySpent = todayTransactions
+        .filter(t => t.type === 'expense')
+        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+      
+      const summary = await storage.getUserSummary(userId);
+      const dailySummary = await generateDailySummary(user?.name || "Usuário", todaySpent, summary.balance);
+      
+      res.json({
+        summary: dailySummary,
+        todaySpent,
+        currentBalance: summary.balance,
+        todayTransactionsCount: todayTransactions.length
+      });
+    } catch (error) {
+      console.error("Error generating daily summary:", error);
+      res.status(500).json({ message: "Erro ao gerar resumo diário" });
+    }
+  });
+
+  // Categories analytics
+  app.get("/api/analytics/categories", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const transactions = await storage.getTransactionsByUser(userId);
+      const expenses = transactions.filter(t => t.type === 'expense');
+      
+      const categoryTotals = expenses.reduce((acc, t) => {
+        acc[t.category] = (acc[t.category] || 0) + parseFloat(t.amount);
+        return acc;
+      }, {} as Record<string, number>);
+      
+      const totalExpenses = Object.values(categoryTotals).reduce((sum, amount) => sum + amount, 0);
+      
+      const categoriesData = Object.entries(categoryTotals)
+        .map(([category, amount]) => ({
+          category,
+          amount,
+          percentage: totalExpenses > 0 ? (amount / totalExpenses) * 100 : 0
+        }))
+        .sort((a, b) => b.amount - a.amount);
+
+      res.json(categoriesData);
+    } catch (error) {
+      console.error("Error in categories analytics:", error);
+      res.status(500).json({ message: "Erro ao analisar categorias" });
+    }
+  });
+
+  // Monthly trends
+  app.get("/api/analytics/trends", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const transactions = await storage.getTransactionsByUser(userId);
+      
+      // Agrupar por mês
+      const monthlyData = transactions.reduce((acc, t) => {
+        const date = new Date(t.date);
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        
+        if (!acc[monthKey]) {
+          acc[monthKey] = { income: 0, expenses: 0, month: monthKey };
+        }
+        
+        const amount = parseFloat(t.amount);
+        if (t.type === 'income') {
+          acc[monthKey].income += amount;
+        } else {
+          acc[monthKey].expenses += amount;
+        }
+        
+        return acc;
+      }, {} as Record<string, { income: number; expenses: number; month: string }>);
+
+      const trendsData = Object.values(monthlyData)
+        .sort((a, b) => a.month.localeCompare(b.month))
+        .slice(-6); // Últimos 6 meses
+
+      res.json(trendsData);
+    } catch (error) {
+      console.error("Error in trends analytics:", error);
+      res.status(500).json({ message: "Erro ao analisar tendências" });
+    }
+  });
+
+  // Admin analytics for charts
+  app.get("/api/admin/analytics", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      
+      // User registration by month
+      const registrationData = users.reduce((acc, user) => {
+        if (user.createdAt) {
+          const date = new Date(user.createdAt);
+          const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+          acc[monthKey] = (acc[monthKey] || 0) + 1;
+        }
+        return acc;
+      }, {} as Record<string, number>);
+
+      const chartData = Object.entries(registrationData)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .slice(-6)
+        .map(([month, count]) => ({
+          month,
+          users: count
+        }));
+
+      // User status distribution
+      const activeUsers = users.filter(u => {
+        if (!u.updatedAt) return false;
+        const lastActivity = new Date(u.updatedAt);
+        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        return lastActivity >= weekAgo;
+      }).length;
+
+      const inactiveUsers = users.length - activeUsers;
+      
+      const statusData = [
+        { name: 'Ativos', value: activeUsers, color: '#25D366' },
+        { name: 'Inativos', value: inactiveUsers, color: '#ECE5DD' }
+      ];
+
+      res.json({
+        registrationChart: chartData,
+        statusChart: statusData,
+        totalUsers: users.length
+      });
+    } catch (error) {
+      console.error("Error in admin analytics:", error);
+      res.status(500).json({ message: "Erro ao carregar analytics" });
+    }
+  });
+
+  // Send message to user (simulated)
+  app.post("/api/admin/send-message", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { userId, title, content } = req.body;
+      
+      if (!userId || !title || !content) {
+        return res.status(400).json({ message: "Dados obrigatórios em falta" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+
+      // Em uma implementação real, isso enviaria um email ou notificação push
+      // Por agora, apenas simulamos o envio
+      console.log(`Message sent to user ${user.name} (${user.email}): ${title} - ${content}`);
+
+      res.json({ 
+        message: "Mensagem enviada com sucesso",
+        recipient: user.name,
+        title,
+        content
+      });
+    } catch (error) {
+      console.error("Error sending message:", error);
+      res.status(500).json({ message: "Erro ao enviar mensagem" });
     }
   });
 

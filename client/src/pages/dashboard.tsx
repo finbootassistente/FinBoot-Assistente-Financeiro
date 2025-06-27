@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { TrendingUp, TrendingDown, Wallet, Plus, Minus, Edit, Trash2 } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, Plus, Minus } from "lucide-react";
 import Header from "@/components/header";
 import TransactionModal from "@/components/transaction-modal";
+import DailySummary from "@/components/daily-summary";
+import AIInsights from "@/components/ai-insights";
+import SpendingChart from "@/components/spending-chart";
+import TrendsChart from "@/components/trends-chart";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { apiRequest } from "@/lib/queryClient";
-import { isUnauthorizedError } from "@/lib/authUtils";
 import { formatCurrency, getRelativeTime, getCategoryIcon } from "@/lib/utils";
 import type { Transaction } from "@shared/schema";
 
@@ -73,90 +75,102 @@ export default function Dashboard() {
     <div className="min-h-screen bg-gray-50">
       <Header currentView="dashboard" />
       
-      <div className="max-w-7xl mx-auto mobile-container py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+        {/* Daily Summary with AI */}
+        <DailySummary />
+
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card className="card-whatsapp">
-            <CardContent className="p-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+          <Card className="card-whatsapp hover:shadow-md transition-shadow">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="text-sm text-gray-600 mb-1">Receitas</p>
                   {summaryLoading ? (
-                    <Skeleton className="h-8 w-32" />
+                    <Skeleton className="h-6 sm:h-8 w-24 sm:w-32" />
                   ) : (
-                    <p className="text-2xl font-bold text-green-600">
+                    <p className="text-lg sm:text-2xl font-bold text-green-600 truncate">
                       {formatCurrency(summary?.totalIncome || 0)}
                     </p>
                   )}
                 </div>
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                  <TrendingUp className="text-green-600 w-6 h-6" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 ml-3">
+                  <TrendingUp className="text-green-600 w-5 h-5 sm:w-6 sm:h-6" />
                 </div>
               </div>
             </CardContent>
           </Card>
           
-          <Card className="card-whatsapp">
-            <CardContent className="p-6">
+          <Card className="card-whatsapp hover:shadow-md transition-shadow">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="text-sm text-gray-600 mb-1">Despesas</p>
                   {summaryLoading ? (
-                    <Skeleton className="h-8 w-32" />
+                    <Skeleton className="h-6 sm:h-8 w-24 sm:w-32" />
                   ) : (
-                    <p className="text-2xl font-bold text-red-600">
+                    <p className="text-lg sm:text-2xl font-bold text-red-600 truncate">
                       {formatCurrency(summary?.totalExpenses || 0)}
                     </p>
                   )}
                 </div>
-                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                  <TrendingDown className="text-red-600 w-6 h-6" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0 ml-3">
+                  <TrendingDown className="text-red-600 w-5 h-5 sm:w-6 sm:h-6" />
                 </div>
               </div>
             </CardContent>
           </Card>
           
-          <Card className="card-whatsapp">
-            <CardContent className="p-6">
+          <Card className="card-whatsapp hover:shadow-md transition-shadow sm:col-span-2 lg:col-span-1">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="text-sm text-gray-600 mb-1">Saldo</p>
                   {summaryLoading ? (
-                    <Skeleton className="h-8 w-32" />
+                    <Skeleton className="h-6 sm:h-8 w-24 sm:w-32" />
                   ) : (
-                    <p className="text-2xl font-bold whatsapp-text">
+                    <p className="text-lg sm:text-2xl font-bold whatsapp-text truncate">
                       {formatCurrency(summary?.balance || 0)}
                     </p>
                   )}
                 </div>
-                <div className="w-12 h-12 whatsapp-green-light rounded-full flex items-center justify-center">
-                  <Wallet className="whatsapp-text w-6 h-6" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 whatsapp-green-light rounded-full flex items-center justify-center flex-shrink-0 ml-3">
+                  <Wallet className="whatsapp-text w-5 h-5 sm:w-6 sm:h-6" />
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
+        {/* Charts Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <SpendingChart />
+          <TrendsChart />
+        </div>
+
+        {/* AI Insights */}
+        <AIInsights />
+
         {/* Quick Actions */}
-        <Card className="card-whatsapp mb-8">
-          <CardContent className="p-6">
+        <Card className="card-whatsapp mt-8 mb-8">
+          <CardContent className="p-4 sm:p-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Ações Rápidas</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <Button
                 onClick={() => openModal('income')}
-                className="flex items-center justify-center p-4 bg-green-50 hover:bg-green-100 rounded-xl border border-green-200 transition-colors text-green-700 h-auto"
+                className="flex items-center justify-center p-3 sm:p-4 bg-green-50 hover:bg-green-100 rounded-xl border border-green-200 transition-colors text-green-700 h-auto"
                 variant="outline"
               >
                 <Plus className="w-4 h-4 mr-2" />
-                <span className="font-medium">Nova Receita</span>
+                <span className="font-medium text-sm sm:text-base">Nova Receita</span>
               </Button>
               <Button
                 onClick={() => openModal('expense')}
-                className="flex items-center justify-center p-4 bg-red-50 hover:bg-red-100 rounded-xl border border-red-200 transition-colors text-red-700 h-auto"
+                className="flex items-center justify-center p-3 sm:p-4 bg-red-50 hover:bg-red-100 rounded-xl border border-red-200 transition-colors text-red-700 h-auto"
                 variant="outline"
               >
                 <Minus className="w-4 h-4 mr-2" />
-                <span className="font-medium">Nova Despesa</span>
+                <span className="font-medium text-sm sm:text-base">Nova Despesa</span>
               </Button>
             </div>
           </CardContent>

@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Edit, Trash2 } from "lucide-react";
+import { Plus, Edit, Trash2, Download, Filter, Calendar } from "lucide-react";
 import Header from "@/components/header";
 import TransactionModal from "@/components/transaction-modal";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +14,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
 import { formatCurrency, formatDateTime, getCategoryIcon } from "@/lib/utils";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 import type { Transaction } from "@shared/schema";
 
 export default function Transactions() {
@@ -21,6 +23,10 @@ export default function Transactions() {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [typeFilter, setTypeFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState("all");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const queryClient = useQueryClient();
@@ -96,10 +102,131 @@ export default function Transactions() {
     "Outros"
   ];
 
+  // Generate PDF export
+  const exportToPDF = async () => {
+    if (!filteredTransactions.length) {
+      toast({
+        title: "Nenhuma transação",
+        description: "Não há transações para exportar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const pdf = new jsPDF();
+      
+      // Header
+      pdf.setFontSize(20);
+      pdf.text("FinBot - Relatório de Transações", 20, 30);
+      
+      pdf.setFontSize(12);
+      pdf.text(`Data de geração: ${new Date().toLocaleDateString('pt-BR')}`, 20, 45);
+      pdf.text(`Total de transações: ${filteredTransactions.length}`, 20, 55);
+      
+      // Summary
+      const totalIncome = filteredTransactions
+        .filter(t => t.type === 'income')
+        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+      const totalExpenses = filteredTransactions
+        .filter(t => t.type === 'expense')
+        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+      
+      pdf.text(`Total de receitas: R$ ${totalIncome.toFixed(2)}`, 20, 70);
+      pdf.text(`Total de despesas: R$ ${totalExpenses.toFixed(2)}`, 20, 80);
+      pdf.text(`Saldo: R$ ${(totalIncome - totalExpenses).toFixed(2)}`, 20, 90);
+      
+      // Transactions table
+      let yPos = 110;
+      pdf.setFontSize(10);
+      pdf.text("Data", 20, yPos);
+      pdf.text("Tipo", 60, yPos);
+      pdf.text("Descrição", 90, yPos);
+      pdf.text("Categoria", 130, yPos);
+      pdf.text("Valor", 170, yPos);
+      
+      yPos += 10;
+      pdf.line(20, yPos - 5, 190, yPos - 5);
+      
+      filteredTransactions.forEach((transaction, index) => {
+        if (yPos > 270) {
+          pdf.addPage();
+          yPos = 30;
+        }
+        
+        const date = new Date(transaction.date).toLocaleDateString('pt-BR');
+        const type = transaction.type === 'income' ? 'Receita' : 'Despesa';
+        const description = transaction.description.length > 15 
+          ? transaction.description.substring(0, 15) + '...' 
+          : transaction.description;
+        
+        pdf.text(date, 20, yPos);
+        pdf.text(type, 60, yPos);
+        pdf.text(description, 90, yPos);
+        pdf.text(transaction.category, 130, yPos);
+        pdf.text(`R$ ${parseFloat(transaction.amount).toFixed(2)}`, 170, yPos);
+        
+        yPos += 8;
+      });
+      
+      pdf.save(`finbot-transacoes-${new Date().toISOString().split('T')[0]}.pdf`);
+      
+      toast({
+        title: "PDF exportado",
+        description: "O relatório foi baixado com sucesso.",
+      });
+    } catch (error) {
+      console.error('Erro ao exportar PDF:', error);
+      toast({
+        title: "Erro na exportação",
+        description: "Não foi possível gerar o PDF. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // Enhanced filtering with date support
   const filteredTransactions = transactions ? transactions.filter((transaction: Transaction) => {
     const typeMatch = typeFilter === "all" || transaction.type === typeFilter;
     const categoryMatch = categoryFilter === "all" || transaction.category === categoryFilter;
-    return typeMatch && categoryMatch;
+    
+    // Date filtering
+    let dateMatch = true;
+    const transactionDate = new Date(transaction.date);
+    const today = new Date();
+    
+    switch (dateFilter) {
+      case 'today':
+        dateMatch = transactionDate.toDateString() === today.toDateString();
+        break;
+      case 'week':
+        const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+        dateMatch = transactionDate >= weekAgo;
+        break;
+      case 'month':
+        const monthAgo = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
+        dateMatch = transactionDate >= monthAgo;
+        break;
+      case 'year':
+        const yearAgo = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate());
+        dateMatch = transactionDate >= yearAgo;
+        break;
+      case 'custom':
+        if (startDate && endDate) {
+          const start = new Date(startDate);
+          const end = new Date(endDate);
+          end.setHours(23, 59, 59, 999); // Include the entire end date
+          dateMatch = transactionDate >= start && transactionDate <= end;
+        }
+        break;
+      default:
+        dateMatch = true;
+    }
+    
+    return typeMatch && categoryMatch && dateMatch;
   }) : [];
 
   const getTransactionIcon = (category: string) => {
@@ -122,11 +249,17 @@ export default function Transactions() {
     <div className="min-h-screen bg-gray-50">
       <Header currentView="transactions" />
       
-      <div className="max-w-7xl mx-auto mobile-container py-6">
-        {/* Filters */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+        {/* Enhanced Filters */}
         <Card className="card-whatsapp mb-6">
-          <CardContent className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Filter className="w-5 h-5" />
+              <span>Filtros de Transação</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <Label className="text-sm font-medium text-gray-700 mb-2">Tipo</Label>
                 <Select value={typeFilter} onValueChange={setTypeFilter}>
@@ -156,31 +289,80 @@ export default function Transactions() {
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label className="text-sm font-medium text-gray-700 mb-2">Data Inicial</Label>
-                <Input type="date" />
-              </div>
-              <div>
-                <Label className="text-sm font-medium text-gray-700 mb-2">Data Final</Label>
-                <Input type="date" />
+              <div className="sm:col-span-2">
+                <Label className="text-sm font-medium text-gray-700 mb-2 flex items-center">
+                  <Calendar className="w-4 h-4 mr-1" />
+                  Período
+                </Label>
+                <Select value={dateFilter} onValueChange={setDateFilter}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os períodos</SelectItem>
+                    <SelectItem value="today">Hoje</SelectItem>
+                    <SelectItem value="week">Últimos 7 dias</SelectItem>
+                    <SelectItem value="month">Último mês</SelectItem>
+                    <SelectItem value="year">Último ano</SelectItem>
+                    <SelectItem value="custom">Período personalizado</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
+            
+            {dateFilter === 'custom' && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium text-gray-700 mb-2">Data Inicial</Label>
+                  <Input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-700 mb-2">Data Final</Label>
+                  <Input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
         {/* Transactions List */}
         <Card className="card-whatsapp">
-          <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-gray-800">
-              Todas as Transações ({filteredTransactions.length})
-            </h3>
-            <Button
-              onClick={() => setIsModalOpen(true)}
-              className="whatsapp-green whatsapp-green-hover text-white px-4 py-2 rounded-lg transition-colors"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Nova Transação
-            </Button>
+          <div className="p-4 sm:p-6 border-b border-gray-200">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-3 sm:space-y-0">
+              <h3 className="text-lg font-semibold text-gray-800">
+                Todas as Transações ({filteredTransactions.length})
+              </h3>
+              <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
+                <Button
+                  onClick={exportToPDF}
+                  disabled={isExporting || filteredTransactions.length === 0}
+                  variant="outline"
+                  className="border-gray-300 hover:bg-gray-50 text-gray-700"
+                >
+                  {isExporting ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
+                  ) : (
+                    <Download className="w-4 h-4 mr-2" />
+                  )}
+                  {isExporting ? 'Exportando...' : 'Exportar PDF'}
+                </Button>
+                <Button
+                  onClick={() => setIsModalOpen(true)}
+                  className="whatsapp-green whatsapp-green-hover text-white transition-colors"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nova Transação
+                </Button>
+              </div>
+            </div>
           </div>
           
           <div className="divide-y divide-gray-200">
@@ -202,17 +384,19 @@ export default function Transactions() {
               ))
             ) : filteredTransactions.length > 0 ? (
               filteredTransactions.map((transaction: Transaction) => (
-                <div key={transaction.id} className="p-4 hover:bg-gray-50 transition-colors">
+                <div key={transaction.id} className="p-3 sm:p-4 hover:bg-gray-50 transition-colors">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center flex-1">
-                      <div className={`w-12 h-12 ${transaction.type === 'income' ? 'bg-green-100' : 'bg-red-100'} rounded-full flex items-center justify-center mr-4`}>
-                        <span className="text-lg">{getTransactionIcon(transaction.category)}</span>
+                    <div className="flex items-center flex-1 min-w-0">
+                      <div className={`w-10 h-10 sm:w-12 sm:h-12 ${transaction.type === 'income' ? 'bg-green-100' : 'bg-red-100'} rounded-full flex items-center justify-center mr-3 flex-shrink-0`}>
+                        <span className="text-sm sm:text-lg">{getTransactionIcon(transaction.category)}</span>
                       </div>
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-800">{transaction.description}</p>
-                        <p className="text-sm text-gray-500">
-                          {transaction.category} • {formatDateTime(transaction.date)}
-                        </p>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-gray-800 truncate text-sm sm:text-base">{transaction.description}</p>
+                        <div className="flex flex-col sm:flex-row sm:items-center text-xs sm:text-sm text-gray-500">
+                          <span className="truncate">{transaction.category}</span>
+                          <span className="hidden sm:inline mx-1">•</span>
+                          <span className="text-xs">{formatDateTime(transaction.date)}</span>
+                        </div>
                         <Badge 
                           variant="secondary"
                           className={`mt-1 ${transaction.type === 'income' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}

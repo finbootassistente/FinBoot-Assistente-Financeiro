@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
-import { Bot, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
+import { FcGoogle } from "react-icons/fc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { registerSchema, loginSchema, type RegisterData, type LoginData } from "@shared/schema";
+import Logo from "@/components/logo";
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -91,15 +93,7 @@ export default function AuthPage() {
       <div className="w-full max-w-6xl grid md:grid-cols-2 gap-8 items-center">
         {/* Hero Section */}
         <div className="hidden md:flex flex-col justify-center space-y-6">
-          <div className="flex items-center space-x-3">
-            <div className="w-16 h-16 whatsapp-green rounded-full flex items-center justify-center">
-              <Bot className="text-white text-2xl w-8 h-8" />
-            </div>
-            <div>
-              <h1 className="text-4xl font-bold text-gray-800">FinBot</h1>
-              <p className="text-gray-600">Controle financeiro inteligente</p>
-            </div>
-          </div>
+          <Logo size="lg" />
           
           <div className="space-y-4">
             <h2 className="text-2xl font-semibold text-gray-800">
@@ -130,10 +124,8 @@ export default function AuthPage() {
         <div className="w-full max-w-md mx-auto">
           <Card className="shadow-lg border-0">
             <CardHeader className="text-center space-y-4">
-              <div className="flex justify-center">
-                <div className="w-12 h-12 whatsapp-green rounded-full flex items-center justify-center md:hidden">
-                  <Bot className="text-white w-6 h-6" />
-                </div>
+              <div className="flex justify-center md:hidden">
+                <Logo size="md" showText={false} />
               </div>
               <CardTitle className="text-2xl font-bold text-gray-800">
                 {isLogin ? "Entrar" : "Criar Conta"}
@@ -209,6 +201,30 @@ export default function AuthPage() {
                       disabled={loginMutation.isPending}
                     >
                       {loginMutation.isPending ? "Entrando..." : "Entrar"}
+                    </Button>
+
+                    <div className="relative">
+                      <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t" />
+                      </div>
+                      <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-white px-2 text-muted-foreground">Ou</span>
+                      </div>
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full h-11 border-gray-300 hover:bg-gray-50"
+                      onClick={() => {
+                        toast({
+                          title: "Login com Google",
+                          description: "Funcionalidade em desenvolvimento",
+                        });
+                      }}
+                    >
+                      <FcGoogle className="w-5 h-5 mr-2" />
+                      Continuar com Google
                     </Button>
                   </form>
                 </Form>

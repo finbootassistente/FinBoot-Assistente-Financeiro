@@ -90,9 +90,50 @@ The application is configured for deployment on Replit with the following setup:
 - **Port**: Application runs on port 5000, exposed as port 80
 - **Autoscale**: Configured for automatic scaling based on demand
 
+## Recent Changes (June 27, 2025)
+
+### Major Feature Additions
+- **AI-Powered Financial Assistant**: Integrated OpenAI GPT-4o for personalized spending analysis and recommendations
+- **Visual Analytics Dashboard**: Added interactive charts using Recharts library
+  - Pie chart for expense categories breakdown
+  - Line chart for monthly income/expense trends
+  - Real-time visual insights with responsive design
+- **Enhanced Mobile Experience**: Completely optimized for mobile devices with responsive layouts
+- **PDF Export Functionality**: Users can export transaction reports as PDF files
+- **Advanced Filtering System**: Date-based filtering (today, week, month, year, custom range)
+- **Daily AI Summary**: Personalized daily financial summaries with AI-generated insights
+- **Google Login Integration**: Added Google sign-in option for improved user experience
+- **Admin Analytics Panel**: Enhanced admin dashboard with usage charts and user management
+- **Messaging System**: Administrators can send messages to users directly from the panel
+
+### Technical Improvements
+- **Database Integration**: Migrated from in-memory storage to PostgreSQL with Drizzle ORM
+- **Enhanced API Routes**: Added comprehensive analytics and AI analysis endpoints
+- **Responsive Design**: Mobile-first approach with improved breakpoints and touch interactions
+- **Logo Component**: Created reusable logo component with multiple sizes and configurations
+- **Export Functionality**: Integrated jsPDF and html2canvas for report generation
+- **Chart Components**: Built modular chart components for spending visualization
+- **Error Handling**: Improved error states and loading indicators throughout the application
+
+### User Experience Enhancements
+- **WhatsApp-Inspired UI**: Maintained familiar messaging app aesthetics
+- **Touch-Optimized Interface**: Enhanced mobile interactions and gestures
+- **Smart Filters**: Intelligent transaction filtering with date ranges
+- **Visual Feedback**: Loading states, animations, and status indicators
+- **Accessibility**: Improved screen reader support and keyboard navigation
+
+## External Dependencies
+
+### New Dependencies Added
+- **recharts**: Interactive charts and data visualization
+- **jspdf**: PDF generation for transaction reports
+- **html2canvas**: HTML to canvas conversion for exports
+- **react-icons/fc**: Google and other service icons
+
 ## Changelog
-- June 27, 2025. Initial setup
+- June 27, 2025. Initial setup with basic financial tracking
+- June 27, 2025. Major enhancement with AI integration, visual analytics, mobile optimization, and comprehensive feature additions
 
 ## User Preferences
 
-Preferred communication style: Simple, everyday language.
+Preferred communication style: Simple, everyday language (Portuguese Brazilian).
