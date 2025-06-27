@@ -35,11 +35,8 @@ export default function Header({ currentView }: HeaderProps) {
 
   const getUserDisplayName = () => {
     if (!user) return "Usuário";
-    if (user.firstName && user.lastName) {
-      return `${user.firstName} ${user.lastName}`;
-    }
-    if (user.firstName) {
-      return user.firstName;
+    if (user.name) {
+      return user.name;
     }
     return user.email || "Usuário";
   };

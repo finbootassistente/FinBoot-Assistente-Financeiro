@@ -2,19 +2,24 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertTransactionSchema } from "@shared/schema";
-import { setupAuth, isAuthenticated, isAdmin } from "./replitAuth";
+import { getSession, registerUser, loginUser, logoutUser, isAuthenticated, isAdmin } from "./auth";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Auth middleware
-  await setupAuth(app);
+  // Session middleware
+  app.set("trust proxy", 1);
+  app.use(getSession());
 
+  // Auth routes
+  app.post("/api/register", registerUser);
+  app.post("/api/login", loginUser);
+  app.post("/api/logout", logoutUser);
+  
   // Get current user
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      res.json(user);
+      const { password, ...userWithoutPassword } = req.user;
+      res.json(userWithoutPassword);
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
@@ -24,9 +29,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Check if user is admin
   app.get('/api/auth/is-admin', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      res.json({ isAdmin: user?.isAdmin === "true" });
+      res.json({ isAdmin: req.user?.isAdmin || false });
     } catch (error) {
       console.error("Error checking admin status:", error);
       res.status(500).json({ message: "Failed to check admin status" });
@@ -36,7 +39,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get user summary (dashboard data)
   app.get("/api/user/summary", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const summary = await storage.getUserSummary(userId);
       res.json(summary);
     } catch (error) {
@@ -47,7 +50,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get recent transactions
   app.get("/api/transactions/recent", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 5;
       const transactions = await storage.getRecentTransactions(userId, limit);
       res.json(transactions);
@@ -59,7 +62,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all user transactions
   app.get("/api/transactions", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const transactions = await storage.getTransactionsByUser(userId);
       res.json(transactions);
     } catch (error) {
@@ -70,7 +73,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create new transaction
   app.post("/api/transactions", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const validatedData = insertTransactionSchema.parse(req.body);
 
       const transaction = await storage.createTransaction({
@@ -96,7 +99,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/users", isAuthenticated, isAdmin, async (req, res) => {
     try {
       const users = await storage.getAllUsers();
-      res.json(users);
+      // Remove passwords from response
+      const usersWithoutPasswords = users.map(({ password, ...user }) => user);
+      res.json(usersWithoutPasswords);
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
     }
