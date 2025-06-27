@@ -1,6 +1,6 @@
 import { users, transactions, type User, type InsertUser, type Transaction, type InsertTransaction } from "@shared/schema";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (for simple auth)
@@ -13,6 +13,8 @@ export interface IStorage {
   getTransaction(id: number): Promise<Transaction | undefined>;
   getTransactionsByUser(userId: number): Promise<Transaction[]>;
   createTransaction(transaction: InsertTransaction & { userId: number }): Promise<Transaction>;
+  updateTransaction(id: number, transaction: Partial<InsertTransaction>, userId: number): Promise<Transaction | undefined>;
+  deleteTransaction(id: number, userId: number): Promise<boolean>;
   getUserSummary(userId: number): Promise<{
     totalIncome: number;
     totalExpenses: number;
@@ -74,6 +76,44 @@ export class DatabaseStorage implements IStorage {
       .values(transactionData)
       .returning();
     return transaction;
+  }
+
+  async updateTransaction(id: number, transactionData: Partial<InsertTransaction>, userId: number): Promise<Transaction | undefined> {
+    // First check if transaction belongs to user
+    const existingTransaction = await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.id, id))
+      .limit(1);
+    
+    if (existingTransaction.length === 0 || existingTransaction[0].userId !== userId) {
+      return undefined;
+    }
+
+    const [transaction] = await db
+      .update(transactions)
+      .set(transactionData)
+      .where(eq(transactions.id, id))
+      .returning();
+    return transaction;
+  }
+
+  async deleteTransaction(id: number, userId: number): Promise<boolean> {
+    // First check if transaction belongs to user
+    const existingTransaction = await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.id, id))
+      .limit(1);
+    
+    if (existingTransaction.length === 0 || existingTransaction[0].userId !== userId) {
+      return false;
+    }
+
+    await db
+      .delete(transactions)
+      .where(eq(transactions.id, id));
+    return true;
   }
 
   async getUserSummary(userId: number): Promise<{

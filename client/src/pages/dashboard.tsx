@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { TrendingUp, TrendingDown, Wallet, Plus, Minus } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { TrendingUp, TrendingDown, Wallet, Plus, Minus, Edit, Trash2 } from "lucide-react";
 import Header from "@/components/header";
 import TransactionModal from "@/components/transaction-modal";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { formatCurrency, getRelativeTime, getCategoryIcon } from "@/lib/utils";
 import type { Transaction } from "@shared/schema";

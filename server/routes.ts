@@ -96,6 +96,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update transaction
+  app.put("/api/transactions/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = req.session.userId!;
+      const updateData = insertTransactionSchema.parse(req.body);
+      
+      const updatedTransaction = await storage.updateTransaction(id, updateData, userId);
+      
+      if (!updatedTransaction) {
+        return res.status(404).json({ message: "Transação não encontrada" });
+      }
+      
+      res.json(updatedTransaction);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Dados inválidos", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ 
+        message: "Internal server error"
+      });
+    }
+  });
+
+  // Delete transaction
+  app.delete("/api/transactions/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = req.session.userId!;
+      
+      const deleted = await storage.deleteTransaction(id, userId);
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "Transação não encontrada" });
+      }
+      
+      res.json({ message: "Transação excluída com sucesso" });
+    } catch (error) {
+      res.status(500).json({ 
+        message: "Internal server error"
+      });
+    }
+  });
+
   // Admin routes
   app.get("/api/admin/users", isAuthenticated, isAdmin, async (req, res) => {
     try {

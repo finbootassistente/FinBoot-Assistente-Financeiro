@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Plus, Edit, Trash2 } from "lucide-react";
 import Header from "@/components/header";
 import TransactionModal from "@/components/transaction-modal";
 import { Button } from "@/components/ui/button";
@@ -12,15 +12,18 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { apiRequest } from "@/lib/queryClient";
 import { formatCurrency, formatDateTime, getCategoryIcon } from "@/lib/utils";
 import type { Transaction } from "@shared/schema";
 
 export default function Transactions() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [typeFilter, setTypeFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const { toast } = useToast();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const queryClient = useQueryClient();
 
   // Redirect to home if not authenticated
   useEffect(() => {
@@ -40,6 +43,46 @@ export default function Transactions() {
   const { data: transactions, isLoading } = useQuery<Transaction[]>({
     queryKey: ["/api/transactions"],
   });
+
+  const deleteTransactionMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await apiRequest("DELETE", `/api/transactions/${id}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/transactions/recent"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/summary"] });
+      
+      toast({
+        title: "Sucesso!",
+        description: "Transação excluída com sucesso.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro",
+        description: `Erro ao excluir transação: ${error.message || "Tente novamente."}`,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleEditTransaction = (transaction: Transaction) => {
+    setEditingTransaction(transaction);
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteTransaction = (id: number) => {
+    if (confirm("Tem certeza que deseja excluir esta transação?")) {
+      deleteTransactionMutation.mutate(id);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setEditingTransaction(null);
+  };
 
   const categories = [
     "Alimentação",
@@ -161,11 +204,11 @@ export default function Transactions() {
               filteredTransactions.map((transaction: Transaction) => (
                 <div key={transaction.id} className="p-4 hover:bg-gray-50 transition-colors">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center">
+                    <div className="flex items-center flex-1">
                       <div className={`w-12 h-12 ${transaction.type === 'income' ? 'bg-green-100' : 'bg-red-100'} rounded-full flex items-center justify-center mr-4`}>
                         <span className="text-lg">{getTransactionIcon(transaction.category)}</span>
                       </div>
-                      <div>
+                      <div className="flex-1">
                         <p className="font-medium text-gray-800">{transaction.description}</p>
                         <p className="text-sm text-gray-500">
                           {transaction.category} • {formatDateTime(transaction.date)}
@@ -178,10 +221,31 @@ export default function Transactions() {
                         </Badge>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <span className={`font-semibold text-lg ${transaction.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
-                        {transaction.type === 'income' ? '+' : '-'}{formatCurrency(parseFloat(transaction.amount))}
-                      </span>
+                    <div className="flex items-center space-x-3">
+                      <div className="text-right mr-3">
+                        <span className={`font-semibold text-lg ${transaction.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
+                          {transaction.type === 'income' ? '+' : '-'}{formatCurrency(parseFloat(transaction.amount))}
+                        </span>
+                      </div>
+                      <div className="flex space-x-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleEditTransaction(transaction)}
+                          className="h-8 w-8 p-0 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDeleteTransaction(transaction.id)}
+                          className="h-8 w-8 p-0 text-red-600 hover:text-red-800 hover:bg-red-50"
+                          disabled={deleteTransactionMutation.isPending}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -206,7 +270,15 @@ export default function Transactions() {
 
       <TransactionModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={handleCloseModal}
+        transaction={editingTransaction ? {
+          id: editingTransaction.id,
+          type: editingTransaction.type as 'income' | 'expense',
+          description: editingTransaction.description,
+          amount: editingTransaction.amount,
+          category: editingTransaction.category,
+          date: editingTransaction.date.toString().split('T')[0]
+        } : undefined}
       />
     </div>
   );

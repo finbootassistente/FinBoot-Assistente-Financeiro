@@ -28,12 +28,21 @@ interface TransactionModalProps {
   isOpen: boolean;
   onClose: () => void;
   type?: 'income' | 'expense';
+  transaction?: {
+    id: number;
+    type: 'income' | 'expense';
+    description: string;
+    amount: string;
+    category: string;
+    date: string;
+  };
 }
 
-export default function TransactionModal({ isOpen, onClose, type = 'income' }: TransactionModalProps) {
-  const [transactionType, setTransactionType] = useState<'income' | 'expense'>(type);
+export default function TransactionModal({ isOpen, onClose, type = 'income', transaction }: TransactionModalProps) {
+  const [transactionType, setTransactionType] = useState<'income' | 'expense'>(transaction?.type || type);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const isEditing = !!transaction;
 
   const categories = [
     "Alimentação",
@@ -50,11 +59,11 @@ export default function TransactionModal({ isOpen, onClose, type = 'income' }: T
   const form = useForm<TransactionFormData>({
     resolver: zodResolver(transactionSchema),
     defaultValues: {
-      type: transactionType,
-      description: "",
-      amount: "" as any,
-      category: "",
-      date: new Date().toISOString().split('T')[0],
+      type: transaction?.type || transactionType,
+      description: transaction?.description || "",
+      amount: transaction?.amount || "" as any,
+      category: transaction?.category || "",
+      date: transaction?.date || new Date().toISOString().split('T')[0],
     },
   });
 
@@ -85,8 +94,39 @@ export default function TransactionModal({ isOpen, onClose, type = 'income' }: T
     },
   });
 
+  const updateTransactionMutation = useMutation({
+    mutationFn: async (data: TransactionFormData) => {
+      const response = await apiRequest("PUT", `/api/transactions/${transaction!.id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/transactions/recent"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/summary"] });
+      
+      toast({
+        title: "Sucesso!",
+        description: "Transação atualizada com sucesso.",
+      });
+      
+      onClose();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro",
+        description: `Erro ao atualizar transação: ${error.message || "Tente novamente."}`,
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = (data: TransactionFormData) => {
-    createTransactionMutation.mutate({ ...data, type: transactionType });
+    const formData = { ...data, type: transactionType };
+    if (isEditing) {
+      updateTransactionMutation.mutate(formData);
+    } else {
+      createTransactionMutation.mutate(formData);
+    }
   };
 
   const handleTypeChange = (newType: 'income' | 'expense') => {
@@ -108,7 +148,10 @@ export default function TransactionModal({ isOpen, onClose, type = 'income' }: T
         <DialogHeader>
           <div className="flex justify-between items-center">
             <DialogTitle>
-              {transactionType === 'income' ? 'Nova Receita' : 'Nova Despesa'}
+              {isEditing 
+                ? `Editar ${transactionType === 'income' ? 'Receita' : 'Despesa'}`
+                : `Nova ${transactionType === 'income' ? 'Receita' : 'Despesa'}`
+              }
             </DialogTitle>
             <Button
               variant="ghost"
@@ -240,21 +283,21 @@ export default function TransactionModal({ isOpen, onClose, type = 'income' }: T
                 onClick={onClose}
                 variant="outline"
                 className="flex-1"
-                disabled={createTransactionMutation.isPending}
+                disabled={createTransactionMutation.isPending || updateTransactionMutation.isPending}
               >
                 Cancelar
               </Button>
               <Button
                 type="submit"
                 className="flex-1 whatsapp-green whatsapp-green-hover text-white"
-                disabled={createTransactionMutation.isPending}
+                disabled={createTransactionMutation.isPending || updateTransactionMutation.isPending}
               >
-                {createTransactionMutation.isPending ? (
+                {(createTransactionMutation.isPending || updateTransactionMutation.isPending) ? (
                   "Salvando..."
                 ) : (
                   <>
                     <Save className="w-4 h-4 mr-2" />
-                    Salvar
+                    {isEditing ? "Atualizar" : "Salvar"}
                   </>
                 )}
               </Button>
