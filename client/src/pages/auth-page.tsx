@@ -349,14 +349,7 @@ export default function AuthPage() {
                 <span className="font-medium text-gray-700">Continuar com Google</span>
               </Button>
 
-              {/* Demo credentials */}
-              <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
-                <p className="text-sm font-medium text-blue-800 mb-2">🚀 Teste a aplicação:</p>
-                <div className="space-y-1 text-xs text-blue-700">
-                  <p><strong>Admin:</strong> admin@finbot.com / admin123</p>
-                  <p><strong>Demo:</strong> demo@finbot.com / demo123</p>
-                </div>
-              </div>
+
             </CardContent>
           </Card>
 

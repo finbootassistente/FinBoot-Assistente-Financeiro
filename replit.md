@@ -94,6 +94,11 @@ The application is configured for deployment on Replit with the following setup:
 
 ### Major Feature Additions
 - **AI-Powered Financial Assistant**: Integrated OpenAI GPT-4o for personalized spending analysis and recommendations
+- **Intelligent Chat Assistant**: Transformed chat into smart financial assistant that:
+  - Interprets natural language commands like "gastei 50 reais com mercado"
+  - Automatically registers transactions from conversational input
+  - Responds to queries about balance, expenses, and financial data
+  - Provides personalized financial advice and insights
 - **Visual Analytics Dashboard**: Added interactive charts using Recharts library
   - Pie chart for expense categories breakdown
   - Line chart for monthly income/expense trends
@@ -106,8 +111,8 @@ The application is configured for deployment on Replit with the following setup:
 - **Admin Analytics Panel**: Enhanced admin dashboard with usage charts and user management
 - **Messaging System**: Administrators can send messages to users directly from the panel
 - **Dark Mode Support**: Full dark/light theme toggle with system preference detection
-- **AI Chat Interface**: WhatsApp-style chat interface for real-time financial assistance
-- **Modern Authentication UI**: Redesigned login/register with gradient backgrounds and smooth animations
+- **AI Chat Interface**: WhatsApp-style chat interface with transaction creation indicators
+- **Modern Authentication UI**: Clean login/register interface without test credentials
 - **Floating Action Buttons**: Quick access to transactions and AI chat from any page
 
 ### Technical Improvements
