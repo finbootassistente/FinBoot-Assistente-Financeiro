@@ -225,6 +225,118 @@ export async function analyzeUserSpending(
   }
 }
 
+// Interface para comandos de transação
+export interface TransactionCommand {
+  action: 'create_transaction' | 'query_data' | 'general_chat';
+  transactionData?: {
+    type: 'income' | 'expense';
+    amount: number;
+    description: string;
+    category: string;
+    date: string;
+  };
+  queryType?: 'balance' | 'expenses' | 'income' | 'category' | 'period';
+  chatResponse: string;
+}
+
+// Função para interpretar comandos financeiros
+export async function interpretarComandoFinanceiro(mensagem: string, userData?: any): Promise<TransactionCommand> {
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+      messages: [
+        {
+          role: "system",
+          content: `Você é o FinBot, um assistente financeiro que interpreta comandos do usuário.
+
+REGRAS DE INTERPRETAÇÃO:
+1. Se o usuário mencionar GASTO/DESPESA/COMPRA: action = "create_transaction", type = "expense"
+2. Se o usuário mencionar RECEBI/GANHO/RENDA: action = "create_transaction", type = "income"  
+3. Se perguntar sobre SALDO/EXTRATO/QUANTO GASTEI: action = "query_data"
+4. Caso contrário: action = "general_chat"
+
+CATEGORIAS VÁLIDAS:
+- Alimentação, Transporte, Casa, Saúde, Educação, Lazer, Compras, Trabalho, Outros
+
+FORMATO DE RESPOSTA (JSON):
+{
+  "action": "create_transaction" | "query_data" | "general_chat",
+  "transactionData": {
+    "type": "income" | "expense",
+    "amount": número,
+    "description": "descrição clara",
+    "category": "categoria apropriada",
+    "date": "YYYY-MM-DD"
+  },
+  "queryType": "balance" | "expenses" | "income" | "category" | "period",
+  "chatResponse": "resposta amigável em português"
+}
+
+Exemplos:
+- "gastei 50 reais com mercado" → create_transaction, expense, 50, "Mercado", "Alimentação"
+- "recebi 1200 do salário" → create_transaction, income, 1200, "Salário", "Trabalho"
+- "quanto gastei esse mês?" → query_data, queryType: "period"
+- "qual meu saldo?" → query_data, queryType: "balance"`
+        },
+        {
+          role: "user",
+          content: mensagem
+        }
+      ],
+      response_format: { type: "json_object" },
+      max_tokens: 300,
+      temperature: 0.3
+    });
+
+    const result = JSON.parse(response.choices[0].message.content || '{}');
+    
+    // Validação e fallback
+    if (!result.action) {
+      return {
+        action: 'general_chat',
+        chatResponse: generateIntelligentFallback(mensagem, userData)
+      };
+    }
+
+    return result;
+  } catch (error) {
+    console.error("Erro ao interpretar comando:", error);
+    return {
+      action: 'general_chat',
+      chatResponse: generateIntelligentFallback(mensagem, userData)
+    };
+  }
+}
+
+// Função para gerar consultas de dados
+export async function gerarConsultaDados(queryType: string, userData: any, transactions: any[]): Promise<string> {
+  const hoje = new Date();
+  const mesAtual = hoje.getMonth();
+  const anoAtual = hoje.getFullYear();
+
+  switch (queryType) {
+    case 'balance':
+      return `💰 **Seu Saldo Atual**\nSaldo: R$ ${userData.balance?.toFixed(2) || '0,00'}\n\n${userData.balance > 0 ? '✅ Você está com saldo positivo!' : '⚠️ Considere revisar seus gastos.'}`;
+
+    case 'expenses':
+      const totalGastos = userData.totalExpenses || 0;
+      return `📊 **Seus Gastos**\nTotal gasto: R$ ${totalGastos.toFixed(2)}\nNúmero de transações: ${transactions.filter(t => t.type === 'expense').length}\n\n💡 Dica: Use o dashboard para ver o gráfico por categorias!`;
+
+    case 'period':
+      const gastosDoMes = transactions
+        .filter(t => {
+          const data = new Date(t.date);
+          return t.type === 'expense' && data.getMonth() === mesAtual && data.getFullYear() === anoAtual;
+        })
+        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+      
+      return `📅 **Extrato do Mês**\nGastos em ${hoje.toLocaleDateString('pt-BR', { month: 'long' })}: R$ ${gastosDoMes.toFixed(2)}\nSaldo atual: R$ ${userData.balance?.toFixed(2) || '0,00'}\n\n📈 Compare com meses anteriores no dashboard!`;
+
+    default:
+      return `📋 **Resumo Financeiro**\n• Saldo: R$ ${userData.balance?.toFixed(2) || '0,00'}\n• Receitas: R$ ${userData.totalIncome?.toFixed(2) || '0,00'}\n• Gastos: R$ ${userData.totalExpenses?.toFixed(2) || '0,00'}\n\n🎯 Continue acompanhando suas finanças!`;
+  }
+}
+
 // Nova função para resposta inteligente da IA
 export async function gerarResposta(mensagemUsuario: string, userData?: any): Promise<string> {
   try {
@@ -239,7 +351,8 @@ export async function gerarResposta(mensagemUsuario: string, userData?: any): Pr
           - Use dados do usuário quando disponíveis
           - Mantenha tom conversacional e motivador
           - Foque em educação financeira prática
-          - Responda em português brasileiro`
+          - Responda em português brasileiro
+          - Use emojis para deixar as respostas mais amigáveis`
         },
         {
           role: "user",

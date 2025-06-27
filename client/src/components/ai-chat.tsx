@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { Send, Bot, User, X, MessageSquare } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Send, Bot, User, X, MessageSquare, CheckCircle, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { formatDateTime } from "@/lib/utils";
@@ -15,6 +16,8 @@ interface Message {
   content: string;
   isUser: boolean;
   timestamp: Date;
+  hasTransaction?: boolean;
+  transactionType?: 'income' | 'expense';
 }
 
 interface AIChatProps {
@@ -26,7 +29,7 @@ export default function AIChat({ isOpen, onClose }: AIChatProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
-      content: "Olá! Sou o assistente financeiro do FinBot. Como posso ajudar você hoje? Posso analisar seus gastos, dar dicas de economia ou responder dúvidas sobre finanças!",
+      content: "Olá! Sou o FinBot, seu assistente financeiro inteligente! 🤖💰\n\nPosso ajudar você a:\n• Registrar gastos e receitas automaticamente\n• Consultar seu saldo e extratos\n• Dar dicas personalizadas de economia\n\nTente falar comigo naturalmente:\n\"gastei 50 reais com mercado\"\n\"recebi 1200 do salário\"\n\"qual meu saldo?\"\n\"quanto gastei esse mês?\"",
       isUser: false,
       timestamp: new Date()
     }
@@ -34,6 +37,7 @@ export default function AIChat({ isOpen, onClose }: AIChatProps) {
   const [inputValue, setInputValue] = useState("");
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const chatMutation = useMutation({
     mutationFn: async (message: string) => {
@@ -45,9 +49,24 @@ export default function AIChat({ isOpen, onClose }: AIChatProps) {
         id: Date.now().toString() + "_ai",
         content: data.response,
         isUser: false,
-        timestamp: new Date()
+        timestamp: new Date(),
+        hasTransaction: data.transactionCreated !== null,
+        transactionType: data.transactionCreated?.type
       };
       setMessages(prev => [...prev, aiMessage]);
+
+      // Se uma transação foi criada, atualizar os dados no cache
+      if (data.transactionCreated) {
+        queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/user/summary'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/transactions/recent'] });
+        
+        toast({
+          title: "Transação registrada!",
+          description: `${data.transactionCreated.type === 'income' ? 'Receita' : 'Despesa'} de R$ ${parseFloat(data.transactionCreated.amount).toFixed(2)} foi adicionada automaticamente.`,
+          variant: "default",
+        });
+      }
     },
     onError: (error: any) => {
       toast({
@@ -132,6 +151,20 @@ export default function AIChat({ isOpen, onClose }: AIChatProps) {
                           : "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-bl-md"
                       }`}
                     >
+                      {/* Indicador de transação criada */}
+                      {message.hasTransaction && !message.isUser && (
+                        <div className="mb-2 flex items-center gap-2">
+                          <Badge 
+                            variant={message.transactionType === 'income' ? 'default' : 'destructive'}
+                            className="text-xs"
+                          >
+                            <CheckCircle className="w-3 h-3 mr-1" />
+                            {message.transactionType === 'income' ? 'Receita' : 'Despesa'} Registrada
+                          </Badge>
+                          <DollarSign className="w-4 h-4 text-green-500" />
+                        </div>
+                      )}
+                      
                       <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                       <p className={`text-xs mt-1 ${
                         message.isUser ? "text-blue-100" : "text-gray-500 dark:text-gray-400"
@@ -170,7 +203,7 @@ export default function AIChat({ isOpen, onClose }: AIChatProps) {
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="Digite sua mensagem..."
+                placeholder="Ex: gastei 50 reais com mercado, qual meu saldo?, recebi 1200 do salário..."
                 className="flex-1 rounded-full border-gray-300 dark:border-gray-600"
                 disabled={chatMutation.isPending}
               />

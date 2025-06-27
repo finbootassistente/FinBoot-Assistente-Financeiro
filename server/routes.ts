@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertTransactionSchema } from "@shared/schema";
 import { getSession, registerUser, loginUser, logoutUser, isAuthenticated, isAdmin } from "./auth";
-import { analyzeUserSpending, generateDailySummary, gerarResposta } from "./ai";
+import { analyzeUserSpending, generateDailySummary, gerarResposta, interpretarComandoFinanceiro, gerarConsultaDados } from "./ai";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -214,10 +214,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // AI Chat route - Nova funcionalidade aprimorada
+  // AI Chat route - Assistente Financeiro Inteligente
   app.post("/api/ai/chat", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.session.userId;
+      const userId = req.user.id;
       const { message } = req.body;
       
       if (!message || typeof message !== 'string') {
@@ -227,19 +227,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Buscar dados do usuário para contexto
       const summary = await storage.getUserSummary(userId);
       const user = await storage.getUser(userId);
-      const recentTransactions = await storage.getRecentTransactions(userId, 10);
+      const allTransactions = await storage.getTransactionsByUser(userId);
       
       const userData = {
         balance: summary.balance,
         totalIncome: summary.totalIncome,
         totalExpenses: summary.totalExpenses,
-        name: user?.name,
-        recentTransactions: recentTransactions.length
+        name: user?.name || "Usuário",
+        recentTransactions: allTransactions.length
       };
 
-      const response = await gerarResposta(message, userData);
+      // Interpretar comando do usuário
+      const comando = await interpretarComandoFinanceiro(message, userData);
       
-      res.json({ response });
+      let resposta = comando.chatResponse;
+      let transactionCreated = null;
+
+      // Executar ação baseada no comando interpretado
+      if (comando.action === 'create_transaction' && comando.transactionData) {
+        try {
+          // Criar transação automaticamente
+          const transactionData = {
+            type: comando.transactionData.type,
+            amount: comando.transactionData.amount.toString(),
+            description: comando.transactionData.description,
+            category: comando.transactionData.category,
+            date: comando.transactionData.date || new Date().toISOString().split('T')[0]
+          };
+
+          const validatedData = insertTransactionSchema.parse(transactionData);
+          transactionCreated = await storage.createTransaction({
+            ...validatedData,
+            userId,
+          });
+
+          // Atualizar resumo após criação
+          const updatedSummary = await storage.getUserSummary(userId);
+          
+          resposta = `✅ **Transação registrada com sucesso!**\n\n` +
+            `💰 ${comando.transactionData.type === 'income' ? 'Receita' : 'Despesa'}: R$ ${comando.transactionData.amount.toFixed(2)}\n` +
+            `📝 Descrição: ${comando.transactionData.description}\n` +
+            `🏷️ Categoria: ${comando.transactionData.category}\n` +
+            `📅 Data: ${new Date(comando.transactionData.date).toLocaleDateString('pt-BR')}\n\n` +
+            `💳 **Saldo atualizado:** R$ ${updatedSummary.balance.toFixed(2)}\n\n` +
+            `🚀 Continue registrando suas transações para ter um controle completo das suas finanças!`;
+
+        } catch (error) {
+          console.error("Erro ao criar transação automática:", error);
+          resposta = `❌ **Ops! Não consegui registrar a transação.**\n\n` +
+            `Mas entendi que você quer registrar:\n` +
+            `• ${comando.transactionData.type === 'income' ? 'Receita' : 'Despesa'} de R$ ${comando.transactionData.amount.toFixed(2)}\n` +
+            `• Descrição: ${comando.transactionData.description}\n` +
+            `• Categoria: ${comando.transactionData.category}\n\n` +
+            `💡 Você pode tentar novamente ou usar o botão "Nova Transação" no dashboard.`;
+        }
+      } else if (comando.action === 'query_data' && comando.queryType) {
+        // Gerar consulta de dados
+        resposta = await gerarConsultaDados(comando.queryType, userData, allTransactions);
+      }
+
+      res.json({ 
+        response: resposta,
+        transactionCreated,
+        action: comando.action
+      });
     } catch (error) {
       console.error("Erro no chat da IA:", error);
       res.status(500).json({ message: "Erro ao processar mensagem" });
