@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
-import { Menu, X, LogOut } from "lucide-react";
+import { Menu, X, LogOut, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useTheme } from "@/contexts/theme-context";
 import Logo from "./logo";
 
 interface HeaderProps {
@@ -18,6 +19,7 @@ export default function Header({ currentView }: HeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user, isAdmin } = useAuth();
   const { toast } = useToast();
+  const { theme, toggleTheme } = useTheme();
 
   const navigation = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊', path: '/dashboard' },
@@ -68,7 +70,7 @@ export default function Header({ currentView }: HeaderProps) {
 
   return (
     <>
-      <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
+      <header className="bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-14 sm:h-16">
             <div className="flex items-center min-w-0">
@@ -93,13 +95,21 @@ export default function Header({ currentView }: HeaderProps) {
                 </Button>
               ))}
               
-              <div className="flex items-center ml-4 space-x-2 border-l border-gray-200 pl-4">
-                <span className="text-sm text-gray-600">Olá, {getUserDisplayName()}</span>
+              <div className="flex items-center ml-4 space-x-2 border-l border-gray-200 dark:border-gray-700 pl-4">
+                <span className="text-sm text-gray-600 dark:text-gray-300">Olá, {getUserDisplayName()}</span>
+                <Button
+                  onClick={toggleTheme}
+                  variant="ghost"
+                  size="sm"
+                  className="text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                >
+                  {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                </Button>
                 <Button
                   onClick={handleLogout}
                   variant="ghost"
                   size="sm"
-                  className="text-gray-600 hover:bg-gray-100"
+                  className="text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                 >
                   <LogOut className="w-4 h-4" />
                 </Button>

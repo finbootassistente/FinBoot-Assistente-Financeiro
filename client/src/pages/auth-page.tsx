@@ -1,23 +1,23 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
+import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, ArrowRight, Smartphone, Shield, TrendingUp } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
 import { registerSchema, loginSchema, type RegisterData, type LoginData } from "@shared/schema";
 import Logo from "@/components/logo";
 
 export default function AuthPage() {
-  const [isLogin, setIsLogin] = useState(true);
-  const [showLoginPassword, setShowLoginPassword] = useState(false);
-  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
-  const [testValue, setTestValue] = useState("");
+  const [, setLocation] = useLocation();
+  const [showPassword, setShowPassword] = useState(false);
   const { toast } = useToast();
 
   const loginForm = useForm<LoginData>({
@@ -35,7 +35,6 @@ export default function AuthPage() {
       email: "",
       password: "",
     },
-    mode: "onChange",
   });
 
   const loginMutation = useMutation({
@@ -44,11 +43,12 @@ export default function AuthPage() {
       return response.json();
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      setLocation("/dashboard");
       toast({
         title: "Login realizado!",
-        description: "Bem-vindo de volta ao FinBot.",
+        description: "Bem-vindo ao FinBot!",
       });
-      window.location.href = "/";
     },
     onError: (error: any) => {
       toast({
@@ -65,16 +65,17 @@ export default function AuthPage() {
       return response.json();
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      setLocation("/dashboard");
       toast({
         title: "Conta criada!",
-        description: "Sua conta foi criada com sucesso. Redirecionando...",
+        description: "Bem-vindo ao FinBot!",
       });
-      window.location.href = "/";
     },
     onError: (error: any) => {
       toast({
         title: "Erro no cadastro",
-        description: error.message || "Erro ao criar conta. Tente novamente.",
+        description: error.message || "Erro ao criar conta.",
         variant: "destructive",
       });
     },
@@ -88,223 +89,123 @@ export default function AuthPage() {
     registerMutation.mutate(data);
   };
 
+  const handleGoogleLogin = () => {
+    // Google OAuth integration
+    toast({
+      title: "Em breve",
+      description: "Login com Google será implementado em breve!",
+    });
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-6xl grid md:grid-cols-2 gap-8 items-center">
-        {/* Hero Section */}
-        <div className="hidden md:flex flex-col justify-center space-y-6">
-          <Logo size="lg" />
-          
-          <div className="space-y-4">
-            <h2 className="text-2xl font-semibold text-gray-800">
-              Gerencie suas finanças de forma simples e intuitiva
-            </h2>
-            <div className="space-y-3 text-gray-600">
-              <div className="flex items-center space-x-3">
-                <div className="w-2 h-2 whatsapp-green rounded-full"></div>
-                <span>Acompanhe receitas e despesas em tempo real</span>
-              </div>
-              <div className="flex items-center space-x-3">
-                <div className="w-2 h-2 whatsapp-green rounded-full"></div>
-                <span>Dashboard com relatórios visuais</span>
-              </div>
-              <div className="flex items-center space-x-3">
-                <div className="w-2 h-2 whatsapp-green rounded-full"></div>
-                <span>Interface estilo WhatsApp familiar</span>
-              </div>
-              <div className="flex items-center space-x-3">
-                <div className="w-2 h-2 whatsapp-green rounded-full"></div>
-                <span>Seguro e privado</span>
-              </div>
-            </div>
+    <div className="min-h-screen bg-gradient-to-tr from-green-50 via-emerald-50 to-white flex flex-col">
+      {/* Header with branding */}
+      <div className="w-full pt-8 pb-4">
+        <div className="text-center px-4">
+          <div className="flex justify-center mb-4">
+            <Logo size="lg" showText={false} />
           </div>
+          <h1 className="text-4xl md:text-5xl font-bold text-green-600 mb-2">
+            FinBot
+          </h1>
+          <p className="text-lg text-gray-600 font-medium">
+            Controle financeiro inteligente
+          </p>
         </div>
+      </div>
 
-        {/* Auth Form */}
-        <div className="w-full max-w-md mx-auto">
-          <Card className="shadow-lg border-0">
-            <CardHeader className="text-center space-y-4">
-              <div className="flex justify-center md:hidden">
-                <Logo size="md" showText={false} />
+      {/* Features showcase */}
+      <div className="hidden md:flex justify-center space-x-8 py-6">
+        <div className="flex items-center space-x-2 text-gray-600">
+          <Smartphone className="w-5 h-5 text-green-500" />
+          <span className="text-sm font-medium">Mobile First</span>
+        </div>
+        <div className="flex items-center space-x-2 text-gray-600">
+          <TrendingUp className="w-5 h-5 text-green-500" />
+          <span className="text-sm font-medium">IA Inteligente</span>
+        </div>
+        <div className="flex items-center space-x-2 text-gray-600">
+          <Shield className="w-5 h-5 text-green-500" />
+          <span className="text-sm font-medium">100% Seguro</span>
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div className="flex-1 flex items-center justify-center px-4 py-8">
+        <div className="w-full max-w-md">
+          <Card className="rounded-2xl shadow-xl border-0 bg-white/80 backdrop-blur-sm">
+            <CardHeader className="space-y-1 pb-4">
+              <div className="text-center">
+                <CardTitle className="text-2xl font-bold text-gray-800">
+                  Bem-vindo de volta
+                </CardTitle>
+                <CardDescription className="text-gray-600 mt-2">
+                  Entre na sua conta para continuar
+                </CardDescription>
               </div>
-              <CardTitle className="text-2xl font-bold text-gray-800">
-                {isLogin ? "Entrar" : "Criar Conta"}
-              </CardTitle>
-              <p className="text-gray-600 text-sm">
-                {isLogin 
-                  ? "Entre na sua conta para continuar" 
-                  : "Crie sua conta para começar"
-                }
-              </p>
             </CardHeader>
-
+            
             <CardContent className="space-y-6">
-              {isLogin ? (
-                <Form {...loginForm}>
-                  <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
-                    <FormField
-                      control={loginForm.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="email"
-                              placeholder="seu@email.com"
-                              {...field}
-                              className="h-11"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+              <Tabs defaultValue="login" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 mb-6 bg-gray-100 rounded-xl p-1">
+                  <TabsTrigger 
+                    value="login" 
+                    className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                  >
+                    Entrar
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="register"
+                    className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                  >
+                    Cadastrar
+                  </TabsTrigger>
+                </TabsList>
 
-                    <FormField
-                      control={loginForm.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Senha</FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <Input
-                                type={showLoginPassword ? "text" : "password"}
-                                placeholder="Sua senha"
-                                {...field}
-                                className="h-11 pr-10"
-                              />
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                                onClick={() => setShowLoginPassword(!showLoginPassword)}
-                              >
-                                {showLoginPassword ? (
-                                  <EyeOff className="h-4 w-4 text-gray-400" />
-                                ) : (
-                                  <Eye className="h-4 w-4 text-gray-400" />
-                                )}
-                              </Button>
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <Button
-                      type="submit"
-                      className="w-full h-11 whatsapp-green text-white hover:bg-green-700"
-                      disabled={loginMutation.isPending}
-                    >
-                      {loginMutation.isPending ? "Entrando..." : "Entrar"}
-                    </Button>
-
-                    <div className="relative">
-                      <div className="absolute inset-0 flex items-center">
-                        <span className="w-full border-t" />
-                      </div>
-                      <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-white px-2 text-muted-foreground">Ou</span>
-                      </div>
-                    </div>
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full h-11 border-gray-300 hover:bg-gray-50"
-                      onClick={() => {
-                        toast({
-                          title: "Login com Google",
-                          description: "Funcionalidade em desenvolvimento",
-                        });
-                      }}
-                    >
-                      <FcGoogle className="w-5 h-5 mr-2" />
-                      Continuar com Google
-                    </Button>
-                  </form>
-                </Form>
-              ) : (
-                <div className="space-y-4">
-                  {/* Campo de teste simples */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Teste de digitação:
-                    </label>
-                    <Input
-                      value={testValue}
-                      onChange={(e) => setTestValue(e.target.value)}
-                      placeholder="Digite algo aqui para testar..."
-                      className="h-11"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Valor: "{testValue}"</p>
-                  </div>
-                  
-                  <Form {...registerForm}>
-                    <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-4">
+                <TabsContent value="login" className="space-y-4">
+                  <Form {...loginForm}>
+                    <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
                       <FormField
-                        control={registerForm.control}
-                        name="name"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Nome completo</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="Seu nome completo"
-                                {...field}
-                                className="h-11"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={registerForm.control}
+                        control={loginForm.control}
                         name="email"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Email</FormLabel>
+                            <FormLabel className="text-gray-700 font-medium">Email</FormLabel>
                             <FormControl>
                               <Input
+                                {...field}
                                 type="email"
                                 placeholder="seu@email.com"
-                                {...field}
-                                className="h-11"
+                                className="h-12 border-gray-200 rounded-xl focus:ring-green-400 focus:border-green-400 transition-colors"
                               />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-
+                      
                       <FormField
-                        control={registerForm.control}
+                        control={loginForm.control}
                         name="password"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Senha</FormLabel>
+                            <FormLabel className="text-gray-700 font-medium">Senha</FormLabel>
                             <FormControl>
                               <div className="relative">
                                 <Input
-                                  type={showRegisterPassword ? "text" : "password"}
-                                  placeholder="Mínimo 6 caracteres"
                                   {...field}
-                                  className="h-11 pr-10"
+                                  type={showPassword ? "text" : "password"}
+                                  placeholder="Digite sua senha"
+                                  className="h-12 border-gray-200 rounded-xl focus:ring-green-400 focus:border-green-400 transition-colors pr-12"
                                 />
                                 <Button
                                   type="button"
                                   variant="ghost"
                                   size="sm"
-                                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                                  onClick={() => setShowRegisterPassword(!showRegisterPassword)}
+                                  className="absolute right-0 top-0 h-12 px-3 hover:bg-transparent"
+                                  onClick={() => setShowPassword(!showPassword)}
                                 >
-                                  {showRegisterPassword ? (
+                                  {showPassword ? (
                                     <EyeOff className="h-4 w-4 text-gray-400" />
                                   ) : (
                                     <Eye className="h-4 w-4 text-gray-400" />
@@ -319,30 +220,159 @@ export default function AuthPage() {
 
                       <Button
                         type="submit"
-                        className="w-full h-11 whatsapp-green text-white hover:bg-green-700"
-                        disabled={registerMutation.isPending}
+                        disabled={loginMutation.isPending}
+                        className="w-full h-12 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl group"
                       >
-                        {registerMutation.isPending ? "Criando conta..." : "Criar conta"}
+                        {loginMutation.isPending ? (
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        ) : (
+                          <>
+                            Entrar
+                            <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                          </>
+                        )}
                       </Button>
                     </form>
                   </Form>
-                </div>
-              )}
+                </TabsContent>
 
-              <div className="text-center">
-                <Button
-                  variant="ghost"
-                  onClick={() => setIsLogin(!isLogin)}
-                  className="text-sm text-gray-600 hover:text-gray-800"
-                >
-                  {isLogin 
-                    ? "Não tem uma conta? Cadastre-se" 
-                    : "Já tem uma conta? Entre"
-                  }
-                </Button>
+                <TabsContent value="register" className="space-y-4">
+                  <Form {...registerForm}>
+                    <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-4">
+                      <FormField
+                        control={registerForm.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-gray-700 font-medium">Nome completo</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                placeholder="Seu nome completo"
+                                className="h-12 border-gray-200 rounded-xl focus:ring-green-400 focus:border-green-400 transition-colors"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={registerForm.control}
+                        name="email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-gray-700 font-medium">Email</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                type="email"
+                                placeholder="seu@email.com"
+                                className="h-12 border-gray-200 rounded-xl focus:ring-green-400 focus:border-green-400 transition-colors"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={registerForm.control}
+                        name="password"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-gray-700 font-medium">Senha</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Input
+                                  {...field}
+                                  type={showPassword ? "text" : "password"}
+                                  placeholder="Mínimo 6 caracteres"
+                                  className="h-12 border-gray-200 rounded-xl focus:ring-green-400 focus:border-green-400 transition-colors pr-12"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="absolute right-0 top-0 h-12 px-3 hover:bg-transparent"
+                                  onClick={() => setShowPassword(!showPassword)}
+                                >
+                                  {showPassword ? (
+                                    <EyeOff className="h-4 w-4 text-gray-400" />
+                                  ) : (
+                                    <Eye className="h-4 w-4 text-gray-400" />
+                                  )}
+                                </Button>
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <Button
+                        type="submit"
+                        disabled={registerMutation.isPending}
+                        className="w-full h-12 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl group"
+                      >
+                        {registerMutation.isPending ? (
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        ) : (
+                          <>
+                            Criar conta
+                            <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                          </>
+                        )}
+                      </Button>
+                    </form>
+                  </Form>
+                </TabsContent>
+              </Tabs>
+
+              {/* Divider */}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-gray-200" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-white px-4 text-gray-500 font-medium">Ou continue com</span>
+                </div>
+              </div>
+
+              {/* Google Login */}
+              <Button
+                onClick={handleGoogleLogin}
+                variant="outline"
+                className="w-full h-12 border-gray-200 rounded-xl hover:bg-gray-50 transition-all duration-200 group"
+              >
+                <FcGoogle className="w-5 h-5 mr-3" />
+                <span className="font-medium text-gray-700">Continuar com Google</span>
+              </Button>
+
+              {/* Demo credentials */}
+              <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                <p className="text-sm font-medium text-blue-800 mb-2">🚀 Teste a aplicação:</p>
+                <div className="space-y-1 text-xs text-blue-700">
+                  <p><strong>Admin:</strong> admin@finbot.com / admin123</p>
+                  <p><strong>Demo:</strong> demo@finbot.com / demo123</p>
+                </div>
               </div>
             </CardContent>
           </Card>
+
+          {/* Footer */}
+          <div className="text-center mt-6 text-sm text-gray-500">
+            <p>
+              Ao continuar, você concorda com nossos{" "}
+              <a href="#" className="text-green-600 hover:underline font-medium">
+                Termos de Uso
+              </a>{" "}
+              e{" "}
+              <a href="#" className="text-green-600 hover:underline font-medium">
+                Política de Privacidade
+              </a>
+            </p>
+          </div>
         </div>
       </div>
     </div>

@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { TrendingUp, TrendingDown, Wallet, Plus, Minus } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, Plus, Minus, MessageSquare } from "lucide-react";
 import Header from "@/components/header";
 import TransactionModal from "@/components/transaction-modal";
 import DailySummary from "@/components/daily-summary";
 import AIInsights from "@/components/ai-insights";
 import SpendingChart from "@/components/spending-chart";
 import TrendsChart from "@/components/trends-chart";
+import AIChat from "@/components/ai-chat";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,6 +19,7 @@ import type { Transaction } from "@shared/schema";
 export default function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState<'income' | 'expense'>('income');
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const { toast } = useToast();
   const { isAuthenticated, isLoading } = useAuth();
 
@@ -239,6 +241,18 @@ export default function Dashboard() {
         onClose={() => setIsModalOpen(false)}
         type={modalType}
       />
+
+      {/* Floating AI Chat Button */}
+      <Button
+        onClick={() => setIsChatOpen(true)}
+        className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-green-500 hover:bg-green-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 z-40"
+        size="sm"
+      >
+        <MessageSquare className="w-6 h-6" />
+      </Button>
+
+      {/* AI Chat Modal */}
+      <AIChat isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </div>
   );
 }

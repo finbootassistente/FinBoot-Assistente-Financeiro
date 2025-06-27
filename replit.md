@@ -105,6 +105,10 @@ The application is configured for deployment on Replit with the following setup:
 - **Google Login Integration**: Added Google sign-in option for improved user experience
 - **Admin Analytics Panel**: Enhanced admin dashboard with usage charts and user management
 - **Messaging System**: Administrators can send messages to users directly from the panel
+- **Dark Mode Support**: Full dark/light theme toggle with system preference detection
+- **AI Chat Interface**: WhatsApp-style chat interface for real-time financial assistance
+- **Modern Authentication UI**: Redesigned login/register with gradient backgrounds and smooth animations
+- **Floating Action Buttons**: Quick access to transactions and AI chat from any page
 
 ### Technical Improvements
 - **Database Integration**: Migrated from in-memory storage to PostgreSQL with Drizzle ORM

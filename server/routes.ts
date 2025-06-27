@@ -358,6 +358,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // AI Chat endpoint
+  app.post("/api/ai/chat", isAuthenticated, async (req: any, res) => {
+    try {
+      const { message } = req.body;
+      const userId = req.user?.id || req.session.userId;
+      
+      // Get user's recent transactions for context
+      const transactions = await storage.getTransactionsByUser(userId);
+      const summary = await storage.getUserSummary(userId);
+      
+      // Simple AI response for now (can be enhanced with OpenAI when quota is available)
+      let response = "";
+      
+      if (message.toLowerCase().includes("saldo") || message.toLowerCase().includes("balanço")) {
+        response = `Seu saldo atual é de R$ ${summary.balance.toFixed(2)}. Você tem ${summary.transactionCount} transações registradas.`;
+      } else if (message.toLowerCase().includes("gasto") || message.toLowerCase().includes("despesa")) {
+        response = `Suas despesas totais são de R$ ${summary.totalExpenses.toFixed(2)}. Recomendo revisar suas categorias de gastos no dashboard.`;
+      } else if (message.toLowerCase().includes("renda") || message.toLowerCase().includes("receita")) {
+        response = `Sua renda total é de R$ ${summary.totalIncome.toFixed(2)}. Continue mantendo um bom controle das suas entradas!`;
+      } else if (message.toLowerCase().includes("dica") || message.toLowerCase().includes("conselho")) {
+        response = "Aqui estão algumas dicas financeiras: 1) Mantenha um orçamento mensal, 2) Reserve uma parte da renda para emergências, 3) Acompanhe seus gastos regularmente.";
+      } else if (message.toLowerCase().includes("categoria")) {
+        const expenses = transactions.filter(t => t.type === 'expense');
+        const categoryTotals = expenses.reduce((acc, t) => {
+          acc[t.category] = (acc[t.category] || 0) + parseFloat(t.amount);
+          return acc;
+        }, {} as Record<string, number>);
+        
+        const topCategory = Object.entries(categoryTotals).sort(([,a], [,b]) => b - a)[0];
+        if (topCategory) {
+          response = `Sua categoria com maior gasto é "${topCategory[0]}" com R$ ${topCategory[1].toFixed(2)}. Considere analisar se há oportunidades de economia nesta área.`;
+        } else {
+          response = "Você ainda não tem transações registradas. Comece adicionando suas receitas e despesas!";
+        }
+      } else {
+        response = "Entendi sua pergunta! Posso ajudar com informações sobre seu saldo, gastos, receitas, categorias e dicas financeiras. O que você gostaria de saber especificamente?";
+      }
+      
+      res.json({ response });
+    } catch (error) {
+      console.error("Erro no chat IA:", error);
+      res.status(500).json({ message: "Erro no chat" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
