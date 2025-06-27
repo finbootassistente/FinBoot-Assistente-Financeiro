@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 const transactionSchema = z.object({
   type: z.enum(["income", "expense"]),
   description: z.string().min(1, "Descrição é obrigatória"),
-  amount: z.string().min(1, "Valor é obrigatório").transform((val) => parseFloat(val)),
+  amount: z.string().min(1, "Valor é obrigatório"),
   category: z.string().min(1, "Categoria é obrigatória"),
   date: z.string().min(1, "Data é obrigatória"),
 });
@@ -60,6 +60,7 @@ export default function TransactionModal({ isOpen, onClose, type = 'income' }: T
 
   const createTransactionMutation = useMutation({
     mutationFn: async (data: TransactionFormData) => {
+      console.log("Sending transaction data:", data);
       const response = await apiRequest("POST", "/api/transactions", data);
       return response.json();
     },
@@ -76,10 +77,11 @@ export default function TransactionModal({ isOpen, onClose, type = 'income' }: T
       form.reset();
       onClose();
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error("Transaction creation error:", error);
       toast({
         title: "Erro",
-        description: "Erro ao criar transação. Tente novamente.",
+        description: `Erro ao criar transação: ${error.message || "Tente novamente."}`,
         variant: "destructive",
       });
     },

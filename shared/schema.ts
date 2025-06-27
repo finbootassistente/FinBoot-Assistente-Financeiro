@@ -55,6 +55,17 @@ export const insertTransactionSchema = createInsertSchema(transactions).pick({
   amount: true,
   category: true,
   date: true,
+}).extend({
+  amount: z.union([z.string(), z.number()]).transform((val) => {
+    const num = typeof val === 'string' ? parseFloat(val) : val;
+    if (isNaN(num) || num <= 0) {
+      throw new Error('Amount must be a positive number');
+    }
+    return num.toString();
+  }),
+  date: z.union([z.string(), z.date()]).transform((val) => {
+    return val instanceof Date ? val : new Date(val);
+  })
 });
 
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
