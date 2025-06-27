@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import Header from "@/components/header";
@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { formatCurrency, formatDateTime, getCategoryIcon } from "@/lib/utils";
 import type { Transaction } from "@shared/schema";
 
@@ -17,8 +19,25 @@ export default function Transactions() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [typeFilter, setTypeFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const { toast } = useToast();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
 
-  const { data: transactions, isLoading } = useQuery({
+  // Redirect to home if not authenticated
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      toast({
+        title: "Acesso Negado",
+        description: "Você precisa fazer login para acessar esta página.",
+        variant: "destructive",
+      });
+      setTimeout(() => {
+        window.location.href = "/api/login";
+      }, 500);
+      return;
+    }
+  }, [isAuthenticated, authLoading, toast]);
+
+  const { data: transactions, isLoading } = useQuery<Transaction[]>({
     queryKey: ["/api/transactions"],
   });
 
@@ -34,11 +53,11 @@ export default function Transactions() {
     "Outros"
   ];
 
-  const filteredTransactions = transactions?.filter((transaction: Transaction) => {
+  const filteredTransactions = transactions ? transactions.filter((transaction: Transaction) => {
     const typeMatch = typeFilter === "all" || transaction.type === typeFilter;
     const categoryMatch = categoryFilter === "all" || transaction.category === categoryFilter;
     return typeMatch && categoryMatch;
-  }) || [];
+  }) : [];
 
   const getTransactionIcon = (category: string) => {
     const iconName = getCategoryIcon(category);

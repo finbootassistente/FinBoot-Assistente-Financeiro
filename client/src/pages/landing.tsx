@@ -1,12 +1,9 @@
-import { useLocation } from "wouter";
-import { Bot } from "lucide-react";
+import { Bot, LogIn, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function Landing() {
-  const [, setLocation] = useLocation();
-
-  const handleAccess = () => {
-    setLocation("/dashboard");
+  const handleLogin = () => {
+    window.location.href = "/api/login";
   };
 
   return (
@@ -21,13 +18,24 @@ export default function Landing() {
           <p className="text-gray-600">Seu assistente financeiro inteligente</p>
         </div>
         
-        <Button 
-          onClick={handleAccess}
-          className="w-full whatsapp-green whatsapp-green-hover text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg h-auto"
-        >
-          <span className="mr-2">→</span>
-          Acessar
-        </Button>
+        <div className="space-y-4">
+          <Button 
+            onClick={handleLogin}
+            className="w-full whatsapp-green whatsapp-green-hover text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg h-auto"
+          >
+            <LogIn className="w-5 h-5 mr-2" />
+            Entrar
+          </Button>
+          
+          <Button 
+            onClick={handleLogin}
+            variant="outline"
+            className="w-full border-2 border-green-200 text-green-700 hover:bg-green-50 font-semibold py-4 px-6 rounded-xl transition-all duration-200 h-auto"
+          >
+            <UserPlus className="w-5 h-5 mr-2" />
+            Criar Conta
+          </Button>
+        </div>
         
         <div className="mt-6 text-sm text-gray-500">
           <p>Controle suas finanças de forma simples e intuitiva</p>

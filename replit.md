@@ -2,7 +2,7 @@
 
 ## Overview
 
-FinBot is a modern full-stack financial management application built with a React frontend and Express.js backend. The application provides users with an intuitive interface to track their income and expenses, view financial summaries, and manage transactions. It features a WhatsApp-inspired design with a clean, mobile-first approach.
+FinBot is a modern full-stack financial management application built with a React frontend and Express.js backend. The application provides users with an intuitive interface to track their income and expenses, view financial summaries, and manage transactions. It features a WhatsApp-inspired design with a clean, mobile-first approach and includes secure user authentication via Replit Auth.
 
 ## System Architecture
 
@@ -11,6 +11,7 @@ The application follows a monorepo structure with clear separation between clien
 - **Frontend**: React with TypeScript, using Vite as the build tool
 - **Backend**: Express.js with TypeScript
 - **Database**: PostgreSQL with Drizzle ORM
+- **Authentication**: Replit Auth with OpenID Connect
 - **UI Framework**: shadcn/ui components with Tailwind CSS
 - **State Management**: TanStack Query for server state management
 - **Routing**: Wouter for client-side routing

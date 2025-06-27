@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { TrendingUp, TrendingDown, Wallet, Plus, Minus } from "lucide-react";
 import Header from "@/components/header";
@@ -5,19 +6,43 @@ import TransactionModal from "@/components/transaction-modal";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { isUnauthorizedError } from "@/lib/authUtils";
 import { formatCurrency, getRelativeTime, getCategoryIcon } from "@/lib/utils";
-import { useState } from "react";
 import type { Transaction } from "@shared/schema";
 
 export default function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState<'income' | 'expense'>('income');
+  const { toast } = useToast();
+  const { isAuthenticated, isLoading } = useAuth();
 
-  const { data: summary, isLoading: summaryLoading } = useQuery({
+  // Redirect to home if not authenticated
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      toast({
+        title: "Acesso Negado",
+        description: "Você precisa fazer login para acessar esta página.",
+        variant: "destructive",
+      });
+      setTimeout(() => {
+        window.location.href = "/api/login";
+      }, 500);
+      return;
+    }
+  }, [isAuthenticated, isLoading, toast]);
+
+  const { data: summary, isLoading: summaryLoading } = useQuery<{
+    totalIncome: number;
+    totalExpenses: number;
+    balance: number;
+    transactionCount: number;
+  }>({
     queryKey: ["/api/user/summary"],
   });
 
-  const { data: recentTransactions, isLoading: transactionsLoading } = useQuery({
+  const { data: recentTransactions, isLoading: transactionsLoading } = useQuery<Transaction[]>({
     queryKey: ["/api/transactions/recent"],
   });
 
@@ -157,7 +182,7 @@ export default function Dashboard() {
                   </div>
                 </div>
               ))
-            ) : recentTransactions?.length > 0 ? (
+            ) : recentTransactions && recentTransactions.length > 0 ? (
               recentTransactions.map((transaction: Transaction) => (
                 <div key={transaction.id} className="p-4 hover:bg-gray-50 transition-colors">
                   <div className="flex items-center justify-between">

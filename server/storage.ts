@@ -1,24 +1,24 @@
-import { users, transactions, type User, type InsertUser, type Transaction, type InsertTransaction } from "@shared/schema";
+import { users, transactions, type User, type UpsertUser, type Transaction, type InsertTransaction } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 export interface IStorage {
-  // User operations
-  getUser(id: number): Promise<User | undefined>;
-  getUserByEmail(email: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  // User operations (for Replit Auth)
+  getUser(id: string): Promise<User | undefined>;
+  upsertUser(user: UpsertUser): Promise<User>;
   getAllUsers(): Promise<User[]>;
-  updateUserLastAccess(id: number): Promise<void>;
   
   // Transaction operations
   getTransaction(id: number): Promise<Transaction | undefined>;
-  getTransactionsByUser(userId: number): Promise<Transaction[]>;
-  createTransaction(transaction: InsertTransaction): Promise<Transaction>;
-  getUserSummary(userId: number): Promise<{
+  getTransactionsByUser(userId: string): Promise<Transaction[]>;
+  createTransaction(transaction: InsertTransaction & { userId: string }): Promise<Transaction>;
+  getUserSummary(userId: string): Promise<{
     totalIncome: number;
     totalExpenses: number;
     balance: number;
     transactionCount: number;
   }>;
-  getRecentTransactions(userId: number, limit?: number): Promise<Transaction[]>;
+  getRecentTransactions(userId: string, limit?: number): Promise<Transaction[]>;
   
   // Admin operations
   getAdminStats(): Promise<{
@@ -29,81 +29,54 @@ export interface IStorage {
   }>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private transactions: Map<number, Transaction>;
-  private currentUserId: number;
-  private currentTransactionId: number;
-
-  constructor() {
-    this.users = new Map();
-    this.transactions = new Map();
-    this.currentUserId = 1;
-    this.currentTransactionId = 1;
-    
-    // Create a default user for demo purposes
-    this.createUser({
-      name: "Demo User",
-      email: "demo@finbot.com"
-    });
+export class DatabaseStorage implements IStorage {
+  // User operations (for Replit Auth)
+  async getUser(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
   }
 
-  async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
-  }
-
-  async getUserByEmail(email: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(user => user.email === email);
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.currentUserId++;
-    const now = new Date();
-    const user: User = {
-      ...insertUser,
-      id,
-      status: "active",
-      createdAt: now,
-      lastAccess: now,
-    };
-    this.users.set(id, user);
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
     return user;
   }
 
   async getAllUsers(): Promise<User[]> {
-    return Array.from(this.users.values());
-  }
-
-  async updateUserLastAccess(id: number): Promise<void> {
-    const user = this.users.get(id);
-    if (user) {
-      user.lastAccess = new Date();
-      this.users.set(id, user);
-    }
+    return await db.select().from(users);
   }
 
   async getTransaction(id: number): Promise<Transaction | undefined> {
-    return this.transactions.get(id);
-  }
-
-  async getTransactionsByUser(userId: number): Promise<Transaction[]> {
-    return Array.from(this.transactions.values())
-      .filter(transaction => transaction.userId === userId)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }
-
-  async createTransaction(insertTransaction: InsertTransaction): Promise<Transaction> {
-    const id = this.currentTransactionId++;
-    const transaction: Transaction = {
-      ...insertTransaction,
-      id,
-      createdAt: new Date(),
-    };
-    this.transactions.set(id, transaction);
+    const [transaction] = await db.select().from(transactions).where(eq(transactions.id, id));
     return transaction;
   }
 
-  async getUserSummary(userId: number): Promise<{
+  async getTransactionsByUser(userId: string): Promise<Transaction[]> {
+    return await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.userId, userId))
+      .orderBy(transactions.date);
+  }
+
+  async createTransaction(transactionData: InsertTransaction & { userId: string }): Promise<Transaction> {
+    const [transaction] = await db
+      .insert(transactions)
+      .values(transactionData)
+      .returning();
+    return transaction;
+  }
+
+  async getUserSummary(userId: string): Promise<{
     totalIncome: number;
     totalExpenses: number;
     balance: number;
@@ -131,7 +104,7 @@ export class MemStorage implements IStorage {
     };
   }
 
-  async getRecentTransactions(userId: number, limit = 5): Promise<Transaction[]> {
+  async getRecentTransactions(userId: string, limit = 5): Promise<Transaction[]> {
     const userTransactions = await this.getTransactionsByUser(userId);
     return userTransactions.slice(0, limit);
   }
@@ -142,29 +115,25 @@ export class MemStorage implements IStorage {
     newThisMonth: number;
     retentionRate: number;
   }> {
-    const allUsers = Array.from(this.users.values());
+    const allUsers = await this.getAllUsers();
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const activeToday = allUsers.filter(user => 
-      new Date(user.lastAccess) >= startOfToday
-    ).length;
-
     const newThisMonth = allUsers.filter(user => 
-      new Date(user.createdAt) >= startOfMonth
+      user.createdAt && new Date(user.createdAt) >= startOfMonth
     ).length;
 
-    const activeUsers = allUsers.filter(user => user.status === 'active').length;
+    const activeUsers = allUsers.filter(user => user.isAdmin !== null).length;
     const retentionRate = allUsers.length > 0 ? Math.round((activeUsers / allUsers.length) * 100) : 0;
 
     return {
       totalUsers: allUsers.length,
-      activeToday,
+      activeToday: 0, // Would need to track last access in real app
       newThisMonth,
       retentionRate,
     };
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();

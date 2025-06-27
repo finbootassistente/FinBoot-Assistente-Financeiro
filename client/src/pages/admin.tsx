@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Users, UserCheck, UserPlus, TrendingUp, Search } from "lucide-react";
 import Header from "@/components/header";
@@ -6,25 +7,50 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { getRelativeTime } from "@/lib/utils";
+import { isUnauthorizedError } from "@/lib/authUtils";
 import type { User } from "@shared/schema";
 
 export default function Admin() {
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  const { toast } = useToast();
+  const { isAuthenticated, isLoading, user } = useAuth();
+
+  // Redirect to home if not authenticated or not admin
+  useEffect(() => {
+    if (!isLoading && (!isAuthenticated || user?.isAdmin !== "true")) {
+      toast({
+        title: "Acesso Negado",
+        description: "Você não tem permissão para acessar esta página.",
+        variant: "destructive",
+      });
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 1000);
+      return;
+    }
+  }, [isAuthenticated, isLoading, user, toast]);
+  const { data: stats, isLoading: statsLoading } = useQuery<{
+    totalUsers: number;
+    activeToday: number;
+    newThisMonth: number;
+    retentionRate: number;
+  }>({
     queryKey: ["/api/admin/stats"],
   });
 
-  const { data: users, isLoading: usersLoading } = useQuery({
+  const { data: users, isLoading: usersLoading } = useQuery<User[]>({
     queryKey: ["/api/admin/users"],
   });
 
-  const getInitials = (name: string): string => {
-    return name
-      .split(' ')
-      .map(word => word.charAt(0))
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
+  const getInitials = (user: User): string => {
+    const firstName = user.firstName || '';
+    const lastName = user.lastName || '';
+    if (firstName || lastName) {
+      return (firstName.charAt(0) + lastName.charAt(0)).toUpperCase();
+    }
+    return user.email?.charAt(0).toUpperCase() || 'U';
   };
 
   const getAvatarColor = (name: string): string => {
@@ -38,6 +64,16 @@ export default function Admin() {
     ];
     const index = name.length % colors.length;
     return colors[index];
+  };
+
+  const getUserDisplayName = (user: User): string => {
+    if (user.firstName && user.lastName) {
+      return `${user.firstName} ${user.lastName}`;
+    }
+    if (user.firstName) {
+      return user.firstName;
+    }
+    return user.email || 'Usuário';
   };
 
   return (
@@ -174,16 +210,16 @@ export default function Admin() {
                       </td>
                     </tr>
                   ))
-                ) : users?.length > 0 ? (
+                ) : users && users.length > 0 ? (
                   users.map((user: User) => (
                     <tr key={user.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center mr-3 ${getAvatarColor(user.name)}`}>
-                            <span className="text-sm font-medium">{getInitials(user.name)}</span>
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center mr-3 ${getAvatarColor(getUserDisplayName(user))}`}>
+                            <span className="text-sm font-medium">{getInitials(user)}</span>
                           </div>
                           <div>
-                            <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                            <div className="text-sm font-medium text-gray-900">{getUserDisplayName(user)}</div>
                             <div className="text-sm text-gray-500">#{user.id.toString().padStart(3, '0')}</div>
                           </div>
                         </div>
@@ -192,16 +228,16 @@ export default function Admin() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <Badge 
                           variant="secondary"
-                          className={user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}
+                          className={user.isAdmin === 'true' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}
                         >
-                          {user.status === 'active' ? 'Ativo' : 'Inativo'}
+                          {user.isAdmin === 'true' ? 'Admin' : 'Usuário'}
                         </Badge>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(user.createdAt).toLocaleDateString('pt-BR')}
+                        {user.createdAt ? new Date(user.createdAt).toLocaleDateString('pt-BR') : 'N/A'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {getRelativeTime(user.lastAccess)}
+                        {user.updatedAt ? getRelativeTime(user.updatedAt) : 'N/A'}
                       </td>
                     </tr>
                   ))
