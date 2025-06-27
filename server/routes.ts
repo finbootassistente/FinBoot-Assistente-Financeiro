@@ -3,13 +3,17 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertTransactionSchema } from "@shared/schema";
 import { getSession, registerUser, loginUser, logoutUser, isAuthenticated, isAdmin } from "./auth";
-import { analyzeUserSpending, generateDailySummary, gerarResposta, interpretarComandoFinanceiro, gerarConsultaDados } from "./ai";
+import { analyzeUserSpending, interpretarComandoFinanceiro, gerarConsultaDados } from "./ai";
+import { setupWhatsAppWebhook, linkPhoneToUser } from "./whatsapp";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Session middleware
   app.set("trust proxy", 1);
   app.use(getSession());
+
+  // Configurar webhook do WhatsApp
+  setupWhatsAppWebhook(app);
 
   // Auth routes
   app.post("/api/register", registerUser);
@@ -200,7 +204,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .reduce((sum, t) => sum + parseFloat(t.amount), 0);
       
       const summary = await storage.getUserSummary(userId);
-      const dailySummary = await generateDailySummary(user?.name || "Usuário", todaySpent, summary.balance);
+      const dailySummary = `Olá ${user?.name || "Usuário"}! Hoje você gastou R$ ${todaySpent.toFixed(2)} e seu saldo atual é R$ ${summary.balance.toFixed(2)}.`;
       
       res.json({
         summary: dailySummary,
@@ -294,6 +298,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro no chat da IA:", error);
       res.status(500).json({ message: "Erro ao processar mensagem" });
+    }
+  });
+
+  // WhatsApp Integration routes
+  app.post("/api/whatsapp/link", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const { phoneNumber } = req.body;
+      
+      if (!phoneNumber) {
+        return res.status(400).json({ message: "Número de telefone é obrigatório" });
+      }
+
+      // Validar formato do número (deve incluir código do país)
+      const phoneRegex = /^\+?[1-9]\d{1,14}$/;
+      if (!phoneRegex.test(phoneNumber)) {
+        return res.status(400).json({ message: "Formato de número inválido. Use +5511999999999" });
+      }
+
+      // Vincular número ao usuário
+      linkPhoneToUser(phoneNumber, userId);
+      
+      res.json({ 
+        message: "Número vinculado com sucesso!",
+        phoneNumber: phoneNumber,
+        instructions: "Agora você pode enviar mensagens diretamente pelo WhatsApp para " + phoneNumber.replace(/(\+\d{2})(\d{2})(\d{5})(\d{4})/, "$1 ($2) $3-$4")
+      });
+    } catch (error) {
+      console.error("Erro ao vincular WhatsApp:", error);
+      res.status(500).json({ message: "Erro interno do servidor" });
     }
   });
 

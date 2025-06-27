@@ -257,48 +257,52 @@ export async function interpretarComandoFinanceiro(mensagem: string, userData?: 
   // Verificar se é gasto/despesa
   if (gastoRegex.test(mensagem)) {
     const match = mensagem.match(gastoRegex);
-    tipo = "expense";
-    valor = parseFloat(match[1].replace(",", "."));
-    const contexto = match[2]?.trim() || "";
-    
-    // Categorizar baseado no contexto
-    categoria = categorizarTransacao(contexto, tipo);
-    descricao = contexto || "Despesa";
+    if (match) {
+      tipo = "expense";
+      valor = parseFloat(match[1].replace(",", "."));
+      const contexto = match[2]?.trim() || "";
+      
+      // Categorizar baseado no contexto
+      categoria = categorizarTransacao(contexto, tipo);
+      descricao = contexto || "Despesa";
 
-    return {
-      action: 'create_transaction',
-      transactionData: {
-        type: 'expense',
-        amount: valor,
-        description: descricao,
-        category: categoria,
-        date: new Date().toISOString().split('T')[0]
-      },
-      chatResponse: `✅ **Despesa detectada!**\n\n💰 Valor: R$ ${valor.toFixed(2)}\n📝 Descrição: ${descricao}\n🏷️ Categoria: ${categoria}\n\nVou registrar para você agora!`
-    };
+      return {
+        action: 'create_transaction',
+        transactionData: {
+          type: 'expense',
+          amount: valor,
+          description: descricao,
+          category: categoria,
+          date: new Date().toISOString().split('T')[0]
+        },
+        chatResponse: `✅ **Despesa detectada!**\n\n💰 Valor: R$ ${valor.toFixed(2)}\n📝 Descrição: ${descricao}\n🏷️ Categoria: ${categoria}\n\nVou registrar para você agora!`
+      };
+    }
   }
 
   // Verificar se é receita
   if (receitaRegex.test(mensagem)) {
     const match = mensagem.match(receitaRegex);
-    tipo = "income";
-    valor = parseFloat(match[1].replace(",", "."));
-    const contexto = match[2]?.trim() || "";
-    
-    categoria = categorizarTransacao(contexto, tipo);
-    descricao = contexto || "Receita";
+    if (match) {
+      tipo = "income";
+      valor = parseFloat(match[1].replace(",", "."));
+      const contexto = match[2]?.trim() || "";
+      
+      categoria = categorizarTransacao(contexto, tipo);
+      descricao = contexto || "Receita";
 
-    return {
-      action: 'create_transaction',
-      transactionData: {
-        type: 'income',
-        amount: valor,
-        description: descricao,
-        category: categoria,
-        date: new Date().toISOString().split('T')[0]
-      },
-      chatResponse: `✅ **Receita detectada!**\n\n💰 Valor: R$ ${valor.toFixed(2)}\n📝 Descrição: ${descricao}\n🏷️ Categoria: ${categoria}\n\nVou registrar para você agora!`
-    };
+      return {
+        action: 'create_transaction',
+        transactionData: {
+          type: 'income',
+          amount: valor,
+          description: descricao,
+          category: categoria,
+          date: new Date().toISOString().split('T')[0]
+        },
+        chatResponse: `✅ **Receita detectada!**\n\n💰 Valor: R$ ${valor.toFixed(2)}\n📝 Descrição: ${descricao}\n🏷️ Categoria: ${categoria}\n\nVou registrar para você agora!`
+      };
+    }
   }
 
   // Verificar consultas de saldo

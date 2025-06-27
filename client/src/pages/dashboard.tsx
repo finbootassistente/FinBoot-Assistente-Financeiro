@@ -8,6 +8,7 @@ import AIInsights from "@/components/ai-insights";
 import SpendingChart from "@/components/spending-chart";
 import TrendsChart from "@/components/trends-chart";
 import AIChat from "@/components/ai-chat";
+import WhatsAppIntegration from "@/components/whatsapp-integration";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -152,6 +153,11 @@ export default function Dashboard() {
 
         {/* AI Insights */}
         <AIInsights />
+
+        {/* WhatsApp Integration */}
+        <div className="mb-8">
+          <WhatsAppIntegration />
+        </div>
 
         {/* Quick Actions */}
         <Card className="card-whatsapp mt-8 mb-8">

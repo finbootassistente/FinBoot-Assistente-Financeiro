@@ -99,6 +99,12 @@ The application is configured for deployment on Replit with the following setup:
   - Automatically registers transactions from conversational input
   - Responds to queries about balance, expenses, and financial data
   - Provides personalized financial advice and insights
+- **WhatsApp Integration**: Complete WhatsApp Business API integration allowing:
+  - Direct transaction registration via WhatsApp messages
+  - User phone number linking system
+  - Automatic response with transaction confirmations
+  - Balance and extract queries through WhatsApp
+  - Webhook system for real-time message processing
 - **Visual Analytics Dashboard**: Added interactive charts using Recharts library
   - Pie chart for expense categories breakdown
   - Line chart for monthly income/expense trends
