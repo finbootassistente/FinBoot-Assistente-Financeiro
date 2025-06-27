@@ -12,7 +12,7 @@ interface HeaderProps {
 export default function Header({ currentView }: HeaderProps) {
   const [, setLocation] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   const navigation = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊', path: '/dashboard' },
@@ -20,7 +20,7 @@ export default function Header({ currentView }: HeaderProps) {
   ];
 
   // Only show admin for admin users
-  if (user?.isAdmin === "true") {
+  if (isAdmin) {
     navigation.push({ id: 'admin', label: 'Admin', icon: '⚙️', path: '/admin' });
   }
 

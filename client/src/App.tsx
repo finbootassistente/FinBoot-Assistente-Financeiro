@@ -11,7 +11,7 @@ import Admin from "@/pages/admin";
 import NotFound from "@/pages/not-found";
 
 function Router() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, isAdmin } = useAuth();
 
   return (
     <Switch>
@@ -22,7 +22,7 @@ function Router() {
           <Route path="/" component={Dashboard} />
           <Route path="/dashboard" component={Dashboard} />
           <Route path="/transactions" component={Transactions} />
-          <Route path="/admin" component={Admin} />
+          <Route path="/admin" component={isAdmin ? Admin : NotFound} />
         </>
       )}
       <Route component={NotFound} />

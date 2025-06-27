@@ -60,7 +60,6 @@ export default function TransactionModal({ isOpen, onClose, type = 'income' }: T
 
   const createTransactionMutation = useMutation({
     mutationFn: async (data: TransactionFormData) => {
-      console.log("Sending transaction data:", data);
       const response = await apiRequest("POST", "/api/transactions", data);
       return response.json();
     },
@@ -78,7 +77,6 @@ export default function TransactionModal({ isOpen, onClose, type = 'income' }: T
       onClose();
     },
     onError: (error: any) => {
-      console.error("Transaction creation error:", error);
       toast({
         title: "Erro",
         description: `Erro ao criar transação: ${error.message || "Tente novamente."}`,

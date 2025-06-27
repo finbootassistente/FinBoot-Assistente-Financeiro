@@ -7,9 +7,17 @@ export function useAuth() {
     retry: false,
   });
 
+  const { data: adminStatus, isLoading: isAdminLoading } = useQuery<{ isAdmin: boolean }>({
+    queryKey: ["/api/auth/is-admin"],
+    retry: false,
+    enabled: !!user, // Only check admin status if user is authenticated
+  });
+
   return {
     user,
     isLoading,
     isAuthenticated: !!user,
+    isAdmin: adminStatus?.isAdmin || false,
+    isAdminLoading,
   };
 }

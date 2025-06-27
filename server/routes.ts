@@ -21,6 +21,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Check if user is admin
+  app.get('/api/auth/is-admin', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json({ isAdmin: user?.isAdmin === "true" });
+    } catch (error) {
+      console.error("Error checking admin status:", error);
+      res.status(500).json({ message: "Failed to check admin status" });
+    }
+  });
+
   // Get user summary (dashboard data)
   app.get("/api/user/summary", isAuthenticated, async (req: any, res) => {
     try {
@@ -59,21 +71,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/transactions", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      console.log("Creating transaction for user:", userId);
-      console.log("Request body:", req.body);
-      
       const validatedData = insertTransactionSchema.parse(req.body);
-      console.log("Validated data:", validatedData);
 
       const transaction = await storage.createTransaction({
         ...validatedData,
         userId,
       });
       
-      console.log("Transaction created:", transaction);
       res.status(201).json(transaction);
     } catch (error) {
-      console.error("Transaction creation error:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ 
           message: "Invalid transaction data",
@@ -81,8 +87,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       res.status(500).json({ 
-        message: "Internal server error",
-        error: error instanceof Error ? error.message : "Unknown error"
+        message: "Internal server error"
       });
     }
   });
