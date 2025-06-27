@@ -13,7 +13,8 @@ import { registerSchema, loginSchema, type RegisterData, type LoginData } from "
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
-  const [showPassword, setShowPassword] = useState(false);
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
   const { toast } = useToast();
 
   const loginForm = useForm<LoginData>({
@@ -175,7 +176,7 @@ export default function AuthPage() {
                           <FormControl>
                             <div className="relative">
                               <Input
-                                type={showPassword ? "text" : "password"}
+                                type={showLoginPassword ? "text" : "password"}
                                 placeholder="Sua senha"
                                 {...field}
                                 className="h-11 pr-10"
@@ -185,9 +186,9 @@ export default function AuthPage() {
                                 variant="ghost"
                                 size="sm"
                                 className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                                onClick={() => setShowPassword(!showPassword)}
+                                onClick={() => setShowLoginPassword(!showLoginPassword)}
                               >
-                                {showPassword ? (
+                                {showLoginPassword ? (
                                   <EyeOff className="h-4 w-4 text-gray-400" />
                                 ) : (
                                   <Eye className="h-4 w-4 text-gray-400" />
@@ -258,7 +259,7 @@ export default function AuthPage() {
                           <FormControl>
                             <div className="relative">
                               <Input
-                                type={showPassword ? "text" : "password"}
+                                type={showRegisterPassword ? "text" : "password"}
                                 placeholder="Mínimo 6 caracteres"
                                 {...field}
                                 className="h-11 pr-10"
@@ -268,9 +269,9 @@ export default function AuthPage() {
                                 variant="ghost"
                                 size="sm"
                                 className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                                onClick={() => setShowPassword(!showPassword)}
+                                onClick={() => setShowRegisterPassword(!showRegisterPassword)}
                               >
-                                {showPassword ? (
+                                {showRegisterPassword ? (
                                   <EyeOff className="h-4 w-4 text-gray-400" />
                                 ) : (
                                   <Eye className="h-4 w-4 text-gray-400" />
