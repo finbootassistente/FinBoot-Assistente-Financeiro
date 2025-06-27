@@ -9,6 +9,7 @@ import SpendingChart from "@/components/spending-chart";
 import TrendsChart from "@/components/trends-chart";
 import AIChat from "@/components/ai-chat";
 import WhatsAppIntegration from "@/components/whatsapp-integration";
+import QuickActions from "@/components/quick-actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -82,6 +83,15 @@ export default function Dashboard() {
         {/* Daily Summary with AI */}
         <DailySummary />
 
+        {/* Quick Actions */}
+        <div className="mb-6 sm:mb-8">
+          <QuickActions 
+            onAddIncome={() => openModal('income')}
+            onAddExpense={() => openModal('expense')}
+            onOpenChat={() => setIsChatOpen(true)}
+          />
+        </div>
+
         {/* Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
           <Card className="card-whatsapp hover:shadow-md transition-shadow">
@@ -152,37 +162,16 @@ export default function Dashboard() {
         </div>
 
         {/* AI Insights */}
-        <AIInsights />
+        <div data-section="insights">
+          <AIInsights />
+        </div>
 
         {/* WhatsApp Integration */}
         <div className="mb-8">
           <WhatsAppIntegration />
         </div>
 
-        {/* Quick Actions */}
-        <Card className="card-whatsapp mt-8 mb-8">
-          <CardContent className="p-4 sm:p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Ações Rápidas</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-              <Button
-                onClick={() => openModal('income')}
-                className="flex items-center justify-center p-3 sm:p-4 bg-green-50 hover:bg-green-100 rounded-xl border border-green-200 transition-colors text-green-700 h-auto"
-                variant="outline"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                <span className="font-medium text-sm sm:text-base">Nova Receita</span>
-              </Button>
-              <Button
-                onClick={() => openModal('expense')}
-                className="flex items-center justify-center p-3 sm:p-4 bg-red-50 hover:bg-red-100 rounded-xl border border-red-200 transition-colors text-red-700 h-auto"
-                variant="outline"
-              >
-                <Minus className="w-4 h-4 mr-2" />
-                <span className="font-medium text-sm sm:text-base">Nova Despesa</span>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+
 
         {/* Recent Transactions */}
         <Card className="card-whatsapp">

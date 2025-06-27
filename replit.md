@@ -152,3 +152,5 @@ The application is configured for deployment on Replit with the following setup:
 ## User Preferences
 
 Preferred communication style: Simple, everyday language (Portuguese Brazilian).
+Support email: finbootassistente@gmail.com
+Feature requests: Include quick actions below daily summary with motivational phrases and financial tips alternating randomly.

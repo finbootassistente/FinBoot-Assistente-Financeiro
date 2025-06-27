@@ -130,6 +130,18 @@ export default function WhatsAppIntegration() {
             <p><strong>Ver extrato:</strong> "extrato do mês"</p>
           </div>
         </div>
+
+        <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mt-4">
+          <div className="text-center text-sm text-gray-600">
+            <p>Dúvidas ou suporte?</p>
+            <a 
+              href="mailto:finbootassistente@gmail.com" 
+              className="text-blue-600 hover:text-blue-800 font-medium"
+            >
+              finbootassistente@gmail.com
+            </a>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

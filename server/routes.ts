@@ -204,7 +204,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .reduce((sum, t) => sum + parseFloat(t.amount), 0);
       
       const summary = await storage.getUserSummary(userId);
-      const dailySummary = `Olá ${user?.name || "Usuário"}! Hoje você gastou R$ ${todaySpent.toFixed(2)} e seu saldo atual é R$ ${summary.balance.toFixed(2)}.`;
+      
+      // Frases motivacionais e dicas financeiras alternando
+      const motivationalPhrases = [
+        "Continue assim, você está no caminho certo! 💪",
+        "Pequenos passos hoje, grandes conquistas amanhã! 🌟",
+        "Sua disciplina financeira está fazendo a diferença! 🎯",
+        "Cada real economizado é um passo rumo à liberdade financeira! 🚀",
+        "Você tem controle total sobre seu futuro financeiro! ✨",
+        "Acredite em si mesmo, você é capaz de grandes conquistas! 🌈"
+      ];
+
+      const financialTips = [
+        "💡 Dica: Reserve pelo menos 10% da sua renda para emergências.",
+        "💡 Dica: Anote todos os gastos para ter controle total das finanças.",
+        "💡 Dica: Compare preços antes de fazer compras maiores.",
+        "💡 Dica: Invista em conhecimento financeiro, ele rende juros compostos.",
+        "💡 Dica: Evite compras por impulso, espere 24h antes de decidir.",
+        "💡 Dica: Automatize suas economias para criar o hábito de poupar."
+      ];
+
+      // Alternar entre frase motivacional e dica financeira
+      const useMotivational = Math.random() < 0.5;
+      const randomMessage = useMotivational 
+        ? motivationalPhrases[Math.floor(Math.random() * motivationalPhrases.length)]
+        : financialTips[Math.floor(Math.random() * financialTips.length)];
+      
+      const dailySummary = `Olá ${user?.name || "Usuário"}! Hoje você gastou R$ ${todaySpent.toFixed(2)} e seu saldo atual é R$ ${summary.balance.toFixed(2)}. ${randomMessage}`;
       
       res.json({
         summary: dailySummary,
