@@ -15,6 +15,7 @@ export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+  const [testValue, setTestValue] = useState("");
   const { toast } = useToast();
 
   const loginForm = useForm<LoginData>({
@@ -32,6 +33,7 @@ export default function AuthPage() {
       email: "",
       password: "",
     },
+    mode: "onChange",
   });
 
   const loginMutation = useMutation({
@@ -211,88 +213,104 @@ export default function AuthPage() {
                   </form>
                 </Form>
               ) : (
-                <Form {...registerForm}>
-                  <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-4">
-                    <FormField
-                      control={registerForm.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Nome completo</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="Seu nome completo"
-                              {...field}
-                              className="h-11"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                <div className="space-y-4">
+                  {/* Campo de teste simples */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Teste de digitação:
+                    </label>
+                    <Input
+                      value={testValue}
+                      onChange={(e) => setTestValue(e.target.value)}
+                      placeholder="Digite algo aqui para testar..."
+                      className="h-11"
                     />
-
-                    <FormField
-                      control={registerForm.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="email"
-                              placeholder="seu@email.com"
-                              {...field}
-                              className="h-11"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={registerForm.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Senha</FormLabel>
-                          <FormControl>
-                            <div className="relative">
+                    <p className="text-xs text-gray-500 mt-1">Valor: "{testValue}"</p>
+                  </div>
+                  
+                  <Form {...registerForm}>
+                    <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-4">
+                      <FormField
+                        control={registerForm.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Nome completo</FormLabel>
+                            <FormControl>
                               <Input
-                                type={showRegisterPassword ? "text" : "password"}
-                                placeholder="Mínimo 6 caracteres"
+                                placeholder="Seu nome completo"
                                 {...field}
-                                className="h-11 pr-10"
+                                className="h-11"
                               />
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                                onClick={() => setShowRegisterPassword(!showRegisterPassword)}
-                              >
-                                {showRegisterPassword ? (
-                                  <EyeOff className="h-4 w-4 text-gray-400" />
-                                ) : (
-                                  <Eye className="h-4 w-4 text-gray-400" />
-                                )}
-                              </Button>
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                    <Button
-                      type="submit"
-                      className="w-full h-11 whatsapp-green text-white hover:bg-green-700"
-                      disabled={registerMutation.isPending}
-                    >
-                      {registerMutation.isPending ? "Criando conta..." : "Criar conta"}
-                    </Button>
-                  </form>
-                </Form>
+                      <FormField
+                        control={registerForm.control}
+                        name="email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Email</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="email"
+                                placeholder="seu@email.com"
+                                {...field}
+                                className="h-11"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={registerForm.control}
+                        name="password"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Senha</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Input
+                                  type={showRegisterPassword ? "text" : "password"}
+                                  placeholder="Mínimo 6 caracteres"
+                                  {...field}
+                                  className="h-11 pr-10"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                                  onClick={() => setShowRegisterPassword(!showRegisterPassword)}
+                                >
+                                  {showRegisterPassword ? (
+                                    <EyeOff className="h-4 w-4 text-gray-400" />
+                                  ) : (
+                                    <Eye className="h-4 w-4 text-gray-400" />
+                                  )}
+                                </Button>
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <Button
+                        type="submit"
+                        className="w-full h-11 whatsapp-green text-white hover:bg-green-700"
+                        disabled={registerMutation.isPending}
+                      >
+                        {registerMutation.isPending ? "Criando conta..." : "Criar conta"}
+                      </Button>
+                    </form>
+                  </Form>
+                </div>
               )}
 
               <div className="text-center">
