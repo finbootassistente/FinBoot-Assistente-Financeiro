@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertTransactionSchema } from "@shared/schema";
 import { getSession, registerUser, loginUser, logoutUser, isAuthenticated, isAdmin } from "./auth";
-import { analyzeUserSpending, generateDailySummary } from "./ai";
+import { analyzeUserSpending, generateDailySummary, gerarResposta } from "./ai";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -211,6 +211,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error generating daily summary:", error);
       res.status(500).json({ message: "Erro ao gerar resumo diário" });
+    }
+  });
+
+  // AI Chat route - Nova funcionalidade aprimorada
+  app.post("/api/ai/chat", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const { message } = req.body;
+      
+      if (!message || typeof message !== 'string') {
+        return res.status(400).json({ message: "Mensagem é obrigatória" });
+      }
+
+      // Buscar dados do usuário para contexto
+      const summary = await storage.getUserSummary(userId);
+      const user = await storage.getUser(userId);
+      const recentTransactions = await storage.getRecentTransactions(userId, 10);
+      
+      const userData = {
+        balance: summary.balance,
+        totalIncome: summary.totalIncome,
+        totalExpenses: summary.totalExpenses,
+        name: user?.name,
+        recentTransactions: recentTransactions.length
+      };
+
+      const response = await gerarResposta(message, userData);
+      
+      res.json({ response });
+    } catch (error) {
+      console.error("Erro no chat da IA:", error);
+      res.status(500).json({ message: "Erro ao processar mensagem" });
     }
   });
 

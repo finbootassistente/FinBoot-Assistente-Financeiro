@@ -3,6 +3,60 @@ import type { Transaction } from "@shared/schema";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+// Sistema de fallback inteligente para quando a OpenAI não está disponível
+function generateIntelligentFallback(userMessage: string, userData?: any): string {
+  const message = userMessage.toLowerCase();
+  
+  // Análise de padrões na mensagem do usuário
+  if (message.includes('saldo') || message.includes('quanto tenho')) {
+    return `Seu saldo atual é de R$ ${userData?.balance || '0,00'}. ${userData?.balance > 0 ? 'Você está com saldo positivo!' : 'Considere revisar seus gastos.'}`;
+  }
+  
+  if (message.includes('gasto') || message.includes('gastei') || message.includes('despesa')) {
+    return `Seus gastos recentes mostram padrões interessantes. Para otimizar suas finanças, sugiro categorizar melhor seus gastos e definir metas mensais. Use o dashboard para visualizar onde está gastando mais.`;
+  }
+  
+  if (message.includes('economizar') || message.includes('poupar')) {
+    return `Dicas para economizar:\n• Defina uma meta de economia mensal\n• Categorize seus gastos essenciais vs supérfluos\n• Use a regra 50-30-20 (necessidades-desejos-poupança)\n• Revise gastos recorrentes mensalmente`;
+  }
+  
+  if (message.includes('investir') || message.includes('investimento')) {
+    return `Para começar a investir:\n• Primeiro, quite dívidas de alto juros\n• Monte uma reserva de emergência\n• Estude produtos de baixo risco (Tesouro Direto, CDB)\n• Diversifique gradualmente seus investimentos`;
+  }
+  
+  if (message.includes('dívida') || message.includes('dever')) {
+    return `Para lidar com dívidas:\n• Liste todas as dívidas com juros\n• Priorize quitar as de maior juros\n• Negocie parcelamentos se necessário\n• Evite contrair novas dívidas`;
+  }
+  
+  if (message.includes('orçamento') || message.includes('planejar')) {
+    return `Planejamento financeiro:\n• Registre todas as receitas e despesas\n• Defina limites por categoria\n• Revise mensalmente seu orçamento\n• Use o FinBot para acompanhar seus progressos`;
+  }
+  
+  if (message.includes('receita') || message.includes('renda') || message.includes('ganho')) {
+    return `Para aumentar sua receita:\n• Diversifique suas fontes de renda\n• Invista em capacitação profissional\n• Considere trabalhos extras ou freelances\n• Monitore oportunidades de aumento salarial`;
+  }
+  
+  if (message.includes('categoria') || message.includes('onde gasto')) {
+    return `Para analisar seus gastos por categoria:\n• Acesse o Dashboard para ver gráficos detalhados\n• Identifique suas maiores categorias de gasto\n• Defina limites por categoria\n• Monitore mensalmente suas tendências`;
+  }
+  
+  if (message.includes('meta') || message.includes('objetivo')) {
+    return `Definindo metas financeiras:\n• Estabeleça metas SMART (específicas, mensuráveis, atingíveis)\n• Comece com metas de curto prazo (30-90 dias)\n• Use o FinBot para acompanhar seu progresso\n• Celebre pequenas conquistas no caminho`;
+  }
+  
+  // Análise contextual baseada em dados do usuário
+  if (userData?.totalExpenses > userData?.totalIncome) {
+    return `Atenção: Seus gastos estão superiores à sua renda. Sugiro revisar despesas não essenciais e criar um plano de redução de custos. Posso ajudar a identificar onde cortar gastos.`;
+  }
+  
+  if (userData?.balance > 1000) {
+    return `Parabéns! Você tem um saldo positivo de R$ ${userData.balance.toFixed(2)}. Considere:\n• Separar parte para emergências\n• Investir em produtos conservadores\n• Definir metas de poupança mensais`;
+  }
+  
+  // Resposta padrão mais inteligente
+  return `Como seu assistente financeiro, estou aqui para ajudar! Posso te auxiliar com:\n\n• Controle de gastos e receitas\n• Análise de padrões financeiros\n• Dicas de economia e investimento\n• Planejamento orçamentário\n• Estratégias para quitar dívidas\n\nSobre o que gostaria de conversar especificamente?`;
+}
+
 export interface FinancialInsight {
   type: 'warning' | 'tip' | 'achievement' | 'suggestion';
   title: string;
@@ -168,6 +222,38 @@ export async function analyzeUserSpending(
         monthlyAverage: totalSpent
       }
     };
+  }
+}
+
+// Nova função para resposta inteligente da IA
+export async function gerarResposta(mensagemUsuario: string, userData?: any): Promise<string> {
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+      messages: [
+        {
+          role: "system",
+          content: `Você é o FinBot, um assistente financeiro inteligente e amigável. Características:
+          - Seja direto, prático e gentil
+          - Ofereça dicas financeiras personalizadas
+          - Use dados do usuário quando disponíveis
+          - Mantenha tom conversacional e motivador
+          - Foque em educação financeira prática
+          - Responda em português brasileiro`
+        },
+        {
+          role: "user",
+          content: `${mensagemUsuario}${userData ? `\n\nDados do usuário: Saldo: R$ ${userData.balance || 0}, Gastos totais: R$ ${userData.totalExpenses || 0}, Receitas: R$ ${userData.totalIncome || 0}` : ''}`
+        }
+      ],
+      max_tokens: 300,
+      temperature: 0.7
+    });
+
+    return response.choices[0].message.content || generateIntelligentFallback(mensagemUsuario, userData);
+  } catch (error) {
+    console.error("Erro na OpenAI, usando fallback inteligente:", error);
+    return generateIntelligentFallback(mensagemUsuario, userData);
   }
 }
 
