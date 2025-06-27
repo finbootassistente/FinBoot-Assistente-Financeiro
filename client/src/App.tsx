@@ -13,18 +13,27 @@ import NotFound from "@/pages/not-found";
 function Router() {
   const { isAuthenticated, isLoading, isAdmin } = useAuth();
 
+  // If loading, show loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+      </div>
+    );
+  }
+
+  // If not authenticated, show auth page for all routes
+  if (!isAuthenticated) {
+    return <AuthPage />;
+  }
+
+  // If authenticated, show app routes
   return (
     <Switch>
-      {isLoading || !isAuthenticated ? (
-        <Route path="/" component={AuthPage} />
-      ) : (
-        <>
-          <Route path="/" component={Dashboard} />
-          <Route path="/dashboard" component={Dashboard} />
-          <Route path="/transactions" component={Transactions} />
-          <Route path="/admin" component={isAdmin ? Admin : NotFound} />
-        </>
-      )}
+      <Route path="/" component={Dashboard} />
+      <Route path="/dashboard" component={Dashboard} />
+      <Route path="/transactions" component={Transactions} />
+      <Route path="/admin" component={isAdmin ? Admin : NotFound} />
       <Route component={NotFound} />
     </Switch>
   );

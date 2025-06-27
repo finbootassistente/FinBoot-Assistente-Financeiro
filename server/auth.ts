@@ -138,6 +138,13 @@ export function logoutUser(req: Request, res: Response) {
       return res.status(500).json({ message: "Erro ao fazer logout" });
     }
     res.clearCookie('connect.sid');
+    
+    // If it's a GET request (direct browser navigation), redirect to home
+    if (req.method === 'GET') {
+      return res.redirect('/');
+    }
+    
+    // For POST requests (API calls), return JSON
     res.json({ message: "Logout realizado com sucesso" });
   });
 }

@@ -14,6 +14,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/register", registerUser);
   app.post("/api/login", loginUser);
   app.post("/api/logout", logoutUser);
+  app.get("/api/logout", logoutUser); // Support GET for direct browser navigation
   
   // Get current user
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {

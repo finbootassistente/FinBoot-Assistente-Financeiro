@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
+import { useMutation } from "@tanstack/react-query";
 import { Bot, Menu, X, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 interface HeaderProps {
   currentView: string;
@@ -13,6 +16,7 @@ export default function Header({ currentView }: HeaderProps) {
   const [, setLocation] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user, isAdmin } = useAuth();
+  const { toast } = useToast();
 
   const navigation = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊', path: '/dashboard' },
@@ -29,8 +33,28 @@ export default function Header({ currentView }: HeaderProps) {
     setIsMobileMenuOpen(false);
   };
 
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/logout");
+      return response.json();
+    },
+    onSuccess: () => {
+      // Invalidate all queries to clear cached user data
+      queryClient.clear();
+      // Force reload to redirect to auth page
+      window.location.href = "/";
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao sair",
+        description: error.message || "Ocorreu um erro ao fazer logout.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleLogout = () => {
-    window.location.href = "/api/logout";
+    logoutMutation.mutate();
   };
 
   const getUserDisplayName = () => {
